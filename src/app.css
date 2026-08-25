@@ -1,0 +1,395 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #050A0F;
+  --surface:   #0B1320;
+  --card:      #0F1C30;
+  --border:    #1E3A5F;
+  --text:      #F0F9FF;
+  --muted:     #64748B;
+  --blue:      #0EA5E9;
+  --green:     #00FF88;
+  --teal:      #06B6D4;
+  --purple:    #818CF8;
+  --red:       #EF4444;
+  --amber:     #F59E0B;
+  --radius:    14px;
+  --sidebar-w: 240px;
+
+  /* Legacy aliases (older components) */
+  --bg-void:        var(--bg);
+  --bg-surface:     var(--surface);
+  --bg-card:        var(--card);
+  --text-primary:   var(--text);
+  --text-muted:     var(--muted);
+  --accent-blue:    var(--blue);
+  --accent-green:   var(--green);
+  --accent-teal:    var(--teal);
+  --accent-violet:  var(--purple);
+  --accent-red:     var(--red);
+  --accent-amber:   var(--amber);
+}
+
+[data-theme="light"] {
+  --bg:      #F8FAFC;
+  --surface: #FFFFFF;
+  --card:    #FFFFFF;
+  --border:  #E2E8F0;
+  --text:    #0F172A;
+  --muted:   #64748B;
+  --blue:    #2563EB;
+  --green:   #16A34A;
+  --teal:    #0891B2;
+  --purple:  #7C3AED;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+@keyframes pulse-slow {
+  0%,100% { opacity: .5; }
+  50%      { opacity: 1; }
+}
+@keyframes glow {
+  0%,100% { text-shadow: 0 0 8px var(--green), 0 0 20px var(--green); }
+  50%      { text-shadow: 0 0 16px var(--green), 0 0 40px var(--green); }
+}
+@keyframes ping {
+  0%       { transform: scale(1); opacity: .8; }
+  75%,100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Sticky dashboard header — clears the fixed hamburger on mobile via the
+   media-query `top` overrides below. */
+.dashboard-topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+
+/* Radar chart: allow the fixed-size SVG to scroll within its card on narrow
+   screens instead of overflowing and breaking the grid. */
+.radar-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Shared stat/metric card. All styling comes from theme tokens so it
+   tracks dark/light mode automatically — no hardcoded Tailwind colors. */
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 24px;
+  color: var(--text);
+  transition: background 0.2s, border 0.2s;
+}
+
+/* ── Tablet ── */
+@media (max-width: 1024px) {
+  :root { --sidebar-w: 200px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Dashboard main grid stacks cleanly full-width so the uneven-height
+     columns align instead of a 2-col layout leaving an awkward gap. */
+  .main-grid  { grid-template-columns: 1fr; }
+  .bottom-grid { grid-template-columns: 1fr; }
+}
+
+/* ── 768px and below ── */
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
+
+  /* Sidebar hidden off-canvas */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Main content full width */
+  .main-content {
+    margin-left: 0;
+    padding-top: 0;
+  }
+
+  /* Topbar / navbar: STICKY not fixed
+     so cards naturally scroll underneath */
+  .topbar, .dashboard-navbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Cards scroll UNDER the sticky navbar naturally */
+  .stats-grid, .main-grid {
+    position: relative;
+    z-index: 1;
+  }
+  
+
+  /* Grids: 2 column */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .main-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 0 16px;
+  }
+
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .bottom-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .page-padding { padding: 16px; }
+}
+
+/* ── 425px and below ── */
+@media (max-width: 425px) {
+  /* Kill ALL grid and flex layouts */
+  .stats-grid,
+  .main-grid,
+  .bottom-grid,
+  .quick-actions-grid,
+  .subjects-grid,
+  .weak-grid,
+  .perf-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 0 12px !important;
+  }
+  /* Stat strip: 3 compact cards in a single horizontal row,
+     the 4th wraps to the next line. */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 8px !important;
+  }
+  .stats-grid .stat-chip {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px !important;
+    padding: 12px 6px !important;
+    text-align: center;
+    width: 100% !important;
+  }
+  .stats-grid .stat-chip > div:first-child {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 13px !important;
+    border-radius: 7px !important;
+  }
+  .stats-grid .stat-chip > div:nth-child(2) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .stats-grid .stat-chip > div:nth-child(2) > div:first-child {
+    font-size: 15px !important;
+  }
+  .stats-grid .stat-chip > div:nth-child(2) > div:nth-child(2) {
+    font-size: 9px !important;
+  }
+
+  /* Stat cards full width stacked */
+  .stat-card {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+
+  /* Quick action buttons full width */
+  .quick-btn {
+    width: 100%;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  /* Score ring smaller */
+  .ring-svg { width: 80px; height: 80px; }
+
+  /* Topbar title smaller + wraps to a second line instead of clipping */
+  .topbar-title,
+  .dashboard-title {
+    font-size: 14px !important;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  /* Dashboard topbar: let the heading stack over the session pill */
+  .dashboard-topbar {
+    flex-wrap: wrap;
+    gap: 8px !important;
+    padding: 8px 0 16px !important;
+  }
+
+  /* Week plan: single column */
+  .week-day {
+    width: 100%;
+    border-radius: var(--radius);
+  }
+
+  /* Footer stacked + centered so nothing overflows on tiny screens */
+  .footer {
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 20px 12px !important;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+  }
+  .footer > div {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* Hide non-essential sidebar items on tiny screens */
+  .nav-label { font-size: 9px; }
+  .nav-item  { padding: 8px 10px; font-size: 12.5px; }
+
+  /* General overflow protection */
+  * { max-width: 100%; word-break: break-word; }
+  img, svg { max-width: 100%; }
+}
+
+/* ── 375px and below ── */
+@media (max-width: 375px) {
+  .stats-grid { padding: 0 8px !important; }
+  .main-content { padding-bottom: 80px; }
+  .stat-card { padding: 12px; }
+  .page-padding { padding: 8px !important; }
+
+  .topbar {
+    padding: 10px 12px;
+  }
+
+  /* Hamburger clear of content */
+  .hamburger {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* ─── Legacy Tailwind surface theming ────────────────────────────────
+   Page-level classes used by older pages now map to the shared theme
+   tokens so dark/light stays consistent across Quiz/Flashcards/Performance.
+   Applied with :global-safe normal specificity; these cards inherit tokens. */
+.bg-white,
+.bg-card {
+  background-color: var(--card);
+}
+.bg-slate-50,
+.bg-slate-100 {
+  background-color: var(--surface);
+}
+.bg-slate-200,
+.skeleton {
+  background-color: var(--border);
+}
+.bg-primary-light,
+.bg-blue-50,
+.bg-blue-100 {
+  background-color: color-mix(in srgb, var(--blue) 12%, transparent);
+}
+.bg-green-50,
+.bg-green-100 {
+  background-color: color-mix(in srgb, var(--green) 12%, transparent);
+}
+.bg-red-50,
+.bg-red-100 {
+  background-color: color-mix(in srgb, var(--red) 12%, transparent);
+}
+.bg-amber-50,
+.bg-amber-100 {
+  background-color: color-mix(in srgb, var(--amber) 14%, transparent);
+}
+.bg-amber-200 {
+  background-color: color-mix(in srgb, var(--amber) 28%, transparent);
+}
+.bg-purple-50 {
+  background-color: color-mix(in srgb, var(--purple) 12%, transparent);
+}
+.bg-primary {
+  background-color: var(--blue);
+}
+.text-ink {
+  color: var(--text);
+}
+.text-muted {
+  color: var(--muted);
+}
+.text-primary {
+  color: var(--blue);
+}
+.text-success {
+  color: var(--green);
+}
+.text-warning {
+  color: var(--amber);
+}
+.text-danger {
+  color: var(--red);
+}
+.border-line {
+  border-color: var(--border);
+}
+.border-primary {
+  border-color: var(--blue);
+}
+.hover\:bg-primary-light:hover,
+.hover\:bg-blue-100:hover,
+.hover\:bg-slate-50:hover,
+.hover\:bg-slate-100:hover {
+  background-color: var(--surface);
+}
+.hover\:border-primary:hover,
+.hover\:border-blue-300:hover,
+.hover\:border-blue-200:hover {
+  border-color: var(--blue);
+}

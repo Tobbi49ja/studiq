@@ -1,0 +1,39 @@
+{
+  "name": "studiq-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 5173 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.10.0",
+    "@sveltejs/adapter-auto": "^3.2.5",
+    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "autoprefixer": "^10.5.4",
+    "eslint": "^9.10.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-svelte": "^2.44.0",
+    "globals": "^15.9.0",
+    "postcss": "^8.5.26",
+    "prettier": "^3.3.3",
+    "prettier-plugin-svelte": "^3.2.6",
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.7.6",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "@skeletonlabs/skeleton": "^2.11.0",
+    "@skeletonlabs/tw-plugin": "^0.4.1",
+    "axios": "^1.19.0",
+    "gsap": "^3.15.0"
+  }
+}
