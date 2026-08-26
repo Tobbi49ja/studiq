@@ -12,6 +12,15 @@
   let users = $state([]);
   let notes = $state([]);
   let auditLogs = $state([]);
+  let contactSettings = $state({
+    email: 'samueltobi040@gmail.com',
+    whatsapp: '',
+    linkedin: '',
+    twitter: '@devtobbi',
+    portfolio: 'https://tobbi-portfolio.onrender.com'
+  });
+  let savingContact = $state(false);
+  let contactSaveMsg = $state('');
 
   async function loadAll() {
     try {
@@ -40,6 +49,7 @@
     if (!$token) { goto('/login'); return; }
     gsap.fromTo('.admin-head', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' });
     loadAll();
+    loadContactSettings();
   });
 
   async function toggleRole(u) {
@@ -72,6 +82,31 @@
       notes = notes.filter((x) => x.id !== n.id);
     } catch (e) {
       error = apiError(e);
+    }
+  }
+
+  async function loadContactSettings() {
+    try {
+      const { data } = await api.get('/admin/settings');
+      if (data.data && Object.keys(data.data).length > 0) {
+        contactSettings = { ...contactSettings, ...data.data.contact || data.data };
+      }
+    } catch {
+      // Use defaults if not loaded
+    }
+  }
+
+  async function saveContactSettings() {
+    savingContact = true;
+    contactSaveMsg = '';
+    try {
+      await api.put('/admin/settings/contact', { value: contactSettings });
+      contactSaveMsg = 'Contact settings saved!';
+      setTimeout(() => { contactSaveMsg = ''; }, 3000);
+    } catch (e) {
+      contactSaveMsg = 'Failed to save: ' + apiError(e);
+    } finally {
+      savingContact = false;
     }
   }
 
@@ -130,6 +165,42 @@
           </div>
         </div>
       {/each}
+    </div>
+
+    <!-- Contact Settings -->
+    <div class="premium-card" style="padding: 24px; margin-bottom: 24px">
+      <h2 style="color: var(--text); font-size: 16px; font-weight: 700; margin: 0 0 18px">Contact & Social Links</h2>
+      <p style="color: var(--muted); font-size: 13px; margin: 0 0 16px; font-weight: 500">These appear on the home page contact section.</p>
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 16px">
+        <div>
+          <label for="contact-email" style="display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px">Email</label>
+          <input id="contact-email" type="email" bind:value={contactSettings.email} class="field-input" placeholder="you@example.com" />
+        </div>
+        <div>
+          <label for="contact-whatsapp" style="display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px">WhatsApp</label>
+          <input id="contact-whatsapp" type="text" bind:value={contactSettings.whatsapp} class="field-input" placeholder="+234 800 000 0000" />
+        </div>
+        <div>
+          <label for="contact-linkedin" style="display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px">LinkedIn</label>
+          <input id="contact-linkedin" type="text" bind:value={contactSettings.linkedin} class="field-input" placeholder="https://linkedin.com/in/yourprofile" />
+        </div>
+        <div>
+          <label for="contact-twitter" style="display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px">Twitter/X</label>
+          <input id="contact-twitter" type="text" bind:value={contactSettings.twitter} class="field-input" placeholder="@yourhandle" />
+        </div>
+        <div style="grid-column: span 2">
+          <label for="contact-portfolio" style="display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px">Portfolio/Website</label>
+          <input id="contact-portfolio" type="text" bind:value={contactSettings.portfolio} class="field-input" placeholder="https://your-site.com" />
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <button onclick={saveContactSettings} disabled={savingContact} class="btn-primary" style="padding: 10px 20px; border-radius: 8px; font-size: 13px">
+          {savingContact ? 'Saving…' : 'Save Contact Settings'}
+        </button>
+        {#if contactSaveMsg}
+          <span style="font-size: 13px; color: {contactSaveMsg.includes('Failed') ? 'var(--red)' : 'var(--green)'}">{contactSaveMsg}</span>
+        {/if}
+      </div>
     </div>
 
     <!-- Users table -->

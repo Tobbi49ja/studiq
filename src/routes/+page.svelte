@@ -130,9 +130,9 @@
       loading = false;
     }
 
-    // Only load study plan if user has performance data
+    // Defer study plan to not block initial render
     if (summary.length > 0 || history.length > 0) {
-      loadStudyPlan();
+      setTimeout(() => loadStudyPlan(), 100);
     }
 
     await tick();
@@ -345,28 +345,35 @@
     <div class="main-grid" style="display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:20px; margin-bottom:28px">
       <!-- Column 1: Score circle + subject breakdown -->
       <div style="display:flex; flex-direction:column; gap:20px">
-        <div class="premium-card" style="padding:24px; display:flex; flex-direction:column; align-items:center">
-          <h2 style="color:var(--text); font-size:16px; font-weight:700; margin:0 0 16px">Overall Score</h2>
-          <div style="position:relative; width:120px; height:120px">
-            <svg width="120" height="120" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r={RING_R} fill="none" stroke="var(--border)" stroke-width="10" />
+        <div class="premium-card" style="padding:28px; display:flex; flex-direction:column; align-items:center; justify-content:center">
+          <h2 style="color:var(--text); font-size:15px; font-weight:700; margin:0 0 20px; text-transform:uppercase; letter-spacing:0.04em">Overall Score</h2>
+          <div style="position:relative; width:130px; height:130px">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle cx="65" cy="65" r={RING_R} fill="none" stroke="var(--border)" stroke-width="10" />
               <circle
                 id="overallRing"
-                cx="60" cy="60" r={RING_R}
+                cx="65" cy="65" r={RING_R}
                 fill="none"
                 stroke="var(--blue)"
                 stroke-width="10"
                 stroke-linecap="round"
                 stroke-dasharray={RING_CIRC}
                 stroke-dashoffset={RING_CIRC}
-                transform="rotate(-90 60 60)"
+                transform="rotate(-90 65 65)"
               />
             </svg>
             <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center">
-              <span style="font-size:24px; font-weight:800; color:var(--text); font-family:'Plus Jakarta Sans';">{overallProgress}%</span>
-              <span style="font-size:11px; color:var(--muted); font-weight:600;">average</span>
+              <span style="font-size:28px; font-weight:800; color:var(--text); font-family:'Plus Jakarta Sans'; line-height:1">{overallProgress}%</span>
+              <span style="font-size:10px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.05em">average</span>
             </div>
           </div>
+          <p style="margin-top:16px; font-size:12px; color:var(--muted); font-weight:500; text-align:center">
+            {#if summary.length > 0}
+              Based on {sessionsCount} session{sessionsCount === 1 ? '' : 's'}
+            {:else}
+              Take a quiz to see your score
+            {/if}
+          </p>
         </div>
 
         <div class="premium-card" style="padding:24px">
@@ -508,4 +515,21 @@
   }
 
   .footer-link { margin-left: 6px; }
+
+  @media (max-width: 1024px) {
+    .main-grid { grid-template-columns: 1fr 1fr !important; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr !important; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px; }
+    .quick-actions-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .dashboard-title { font-size: 22px !important; }
+  }
+
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr !important; }
+    .quick-actions-grid { grid-template-columns: 1fr !important; }
+  }
 </style>

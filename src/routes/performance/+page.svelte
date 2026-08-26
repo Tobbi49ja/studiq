@@ -138,77 +138,79 @@
     <!-- Stats grid -->
     <div class="perf-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px">
       <!-- Score ring -->
-      <div class="stat-card premium-card" style="padding: 28px; text-align: center">
-        <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 20px">Overall Score</h2>
-        <div style="position: relative; width: 140px; height: 140px; margin: 0 auto">
-          <svg width="140" height="140" viewBox="0 0 140 140">
-            <circle cx="70" cy="70" r={R} fill="none" stroke="var(--border)" stroke-width="12" />
-            <circle id="scoreRing" cx="70" cy="70" r={R} fill="none" stroke="var(--purple)"
-              stroke-width="12" stroke-linecap="round" stroke-dasharray={CIRC} stroke-dashoffset={CIRC}
-              transform="rotate(-90 70 70)" />
-          </svg>
-          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center">
-            <span id="scoreValue" style="font-size: 28px; font-weight: 800; color: var(--text); font-family: 'Plus Jakarta Sans', sans-serif">0%</span>
-            <span style="font-size: 11px; color: var(--muted); font-weight: 600">average</span>
+      <div class="stat-card premium-card">
+        <div class="stat-card-inner">
+          <h2 class="stat-card-title">Overall Score</h2>
+          <div class="score-ring-wrap">
+            <svg width="140" height="140" viewBox="0 0 140 140">
+              <circle cx="70" cy="70" r={R} fill="none" stroke="var(--border)" stroke-width="12" />
+              <circle id="scoreRing" cx="70" cy="70" r={R} fill="none" stroke="var(--purple)"
+                stroke-width="12" stroke-linecap="round" stroke-dasharray={CIRC} stroke-dashoffset={CIRC}
+                transform="rotate(-90 70 70)" />
+            </svg>
+            <div class="score-ring-inner">
+              <span id="scoreValue">0%</span>
+              <span class="score-sub">average</span>
+            </div>
           </div>
+          <p class="score-foot">
+            {#if bestSubject}
+              Best: <strong>{bestSubject.subject}</strong> at {bestSubject.avgScore}%
+            {:else}
+              Complete a quiz to see your score.
+            {/if}
+          </p>
         </div>
-        <p style="margin-top: 16px; font-size: 13px; color: var(--muted); font-weight: 500">
-          {#if bestSubject}
-            Best: <span style="font-weight: 700; color: var(--text)">{bestSubject.subject}</span> at {bestSubject.avgScore}%
-          {:else}
-            Complete a quiz to see your score.
-          {/if}
-        </p>
       </div>
 
       <!-- Subject breakdown -->
-      <div class="stat-card premium-card" style="padding: 28px">
-        <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 20px">Subject Breakdown</h2>
-        {#if summary.length}
-          <div style="display: flex; flex-direction: column; gap: 16px">
-            {#each summary as s}
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px">
-                  <span style="font-size: 13px; font-weight: 600; color: var(--text)">{s.subject}</span>
-                  <span style="font-size: 13px; font-weight: 700; color: {barColor(s.avgScore)}">{s.avgScore}%</span>
+      <div class="stat-card premium-card">
+        <div class="stat-card-inner">
+          <h2 class="stat-card-title">Subject Breakdown</h2>
+          {#if summary.length}
+            <div class="subject-list">
+              {#each summary as s}
+                <div class="subject-row">
+                  <div class="subject-head">
+                    <span class="subject-name">{s.subject}</span>
+                    <span class="subject-score" style="color: {barColor(s.avgScore)}">{s.avgScore}%</span>
+                  </div>
+                  <div class="subject-bar">
+                    <div class="subject-bar-fill" style="width: {s.avgScore}%; background: {barColor(s.avgScore)}"></div>
+                  </div>
+                  <div class="subject-meta">{s.quizCount} quiz{s.quizCount === 1 ? '' : 'zes'} taken</div>
                 </div>
-                <div style="height: 6px; border-radius: 99px; background: var(--border)">
-                  <div style="height: 6px; border-radius: 99px; background: {barColor(s.avgScore)}; width: {s.avgScore}%; transition: width 1s ease"></div>
-                </div>
-                <div style="margin-top: 5px; font-size: 11px; color: var(--muted); font-weight: 500">{s.quizCount} quiz{s.quizCount === 1 ? '' : 'zes'} taken</div>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div style="color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; font-weight: 500">No subjects yet — take your first quiz.</div>
-        {/if}
+              {/each}
+            </div>
+          {:else}
+            <div class="empty-state">No subjects yet — take your first quiz.</div>
+          {/if}
+        </div>
       </div>
 
       <!-- Weak areas -->
-      <div class="stat-card premium-card" style="padding: 28px">
-        <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 20px">Weak Areas</h2>
-        {#if weakTopics.length}
-          <div style="display: flex; flex-direction: column; gap: 10px">
-            {#each weakTopics as t}
-              <div class="weak-card" style="
-                background: color-mix(in srgb, var(--amber) 8%, var(--surface));
-                border: 1px solid color-mix(in srgb, var(--amber) 20%, var(--border));
-                border-radius: 10px; padding: 12px 14px;
-              ">
-                <div style="font-size: 10px; font-weight: 700; color: var(--amber); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px">Needs work</div>
-                <div style="font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 8px">{t.topic}</div>
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <div style="flex: 1; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--amber) 20%, var(--border))">
-                    <div style="height: 5px; border-radius: 99px; background: var(--amber); width: {t.avgScore}%"></div>
+      <div class="stat-card premium-card">
+        <div class="stat-card-inner">
+          <h2 class="stat-card-title">Weak Areas</h2>
+          {#if weakTopics.length}
+            <div class="weak-list">
+              {#each weakTopics as t}
+                <div class="weak-card">
+                  <div class="weak-tag">Needs work</div>
+                  <div class="weak-topic">{t.topic}</div>
+                  <div class="weak-bar-wrap">
+                    <div class="weak-bar">
+                      <div class="weak-bar-fill" style="width: {t.avgScore}%"></div>
+                    </div>
+                    <span class="weak-score">{t.avgScore}%</span>
                   </div>
-                  <span style="font-size: 11px; font-weight: 700; color: var(--amber)">{t.avgScore}%</span>
                 </div>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div style="color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; font-weight: 500">No weak areas yet — keep quizzing!</div>
-        {/if}
+              {/each}
+            </div>
+          {:else}
+            <div class="empty-state">No weak areas yet — keep quizzing!</div>
+          {/if}
+        </div>
       </div>
     </div>
 
@@ -310,9 +312,198 @@
 </div>
 
 <style>
+  .stat-card {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-card-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .stat-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .score-ring-wrap {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+    flex-shrink: 0;
+  }
+
+  .score-ring-inner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .score-ring-inner span:first-child {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    line-height: 1;
+  }
+
+  .score-sub {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .score-foot {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    text-align: center;
+  }
+
+  .subject-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .subject-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .subject-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .subject-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .subject-score {
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .subject-bar {
+    height: 6px;
+    border-radius: 99px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .subject-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1s ease;
+  }
+
+  .subject-meta {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .weak-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .weak-card {
+    background: color-mix(in srgb, var(--amber) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--amber) 20%, var(--border));
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .weak-tag {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--amber);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+
+  .weak-topic {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-bottom: 8px;
+  }
+
+  .weak-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .weak-bar {
+    flex: 1;
+    height: 5px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--amber) 20%, var(--border));
+    overflow: hidden;
+  }
+
+  .weak-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--amber);
+  }
+
+  .weak-score {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--amber);
+    flex-shrink: 0;
+  }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 24px 0;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  @media (max-width: 1024px) {
+    .perf-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+    .stat-card:first-child {
+      grid-column: span 2;
+    }
+  }
+
   @media (max-width: 768px) {
     .perf-grid {
       grid-template-columns: 1fr !important;
+    }
+    .stat-card:first-child {
+      grid-column: span 1;
     }
   }
 </style>

@@ -8,9 +8,24 @@
 
   let sidebarOpen = false;
   let lastPath = '';
+  let hamburgerOpacity = 0.3;
+  let fadeTimeout;
 
   onMount(() => {
-    document.documentElement.setAttribute('data-theme', $theme)
+    document.documentElement.setAttribute('data-theme', $theme);
+    
+    // Show hamburger when mouse is near left edge on mobile
+    const handleMouseMove = (e) => {
+      if (window.innerWidth <= 768 && e.clientX < 50) {
+        showHamburger();
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      clearTimeout(fadeTimeout);
+    };
   });
 
   // Auto-close the sidebar whenever the route changes.
@@ -24,6 +39,19 @@
   $: isPublic = publicRoutes.some(r =>
     $page.url.pathname.startsWith(r)
   )
+
+  function showHamburger() {
+    hamburgerOpacity = 0.9;
+    clearTimeout(fadeTimeout);
+    fadeTimeout = setTimeout(() => {
+      hamburgerOpacity = 0.3;
+    }, 3000);
+  }
+
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+    showHamburger();
+  }
 </script>
 
 <svelte:head>
@@ -37,8 +65,10 @@
   <button 
     class="hamburger" 
     class:hidden={sidebarOpen} 
-    onclick={() => (sidebarOpen = !sidebarOpen)}
+    onclick={toggleSidebar}
+    onmouseenter={showHamburger}
     aria-label="Open menu"
+    style="opacity: {hamburgerOpacity};"
   >
     <Icon name="menu" size={18} />
   </button>
@@ -95,13 +125,14 @@
     color: var(--text);
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    transition: background 0.2s, border-color 0.2s;
+    transition: background 0.2s, border-color 0.2s, opacity 0.4s ease;
   }
 
   .hamburger:hover {
     background: var(--card);
     border-color: var(--blue);
     color: var(--blue);
+    opacity: 1 !important;
   }
 
   .hamburger.hidden {

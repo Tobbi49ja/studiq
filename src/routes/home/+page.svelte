@@ -3,6 +3,7 @@
   import { token } from '$lib/stores/auth';
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { api } from '$lib/api/index.js';
 
   const features = [
     { icon: 'upload', title: 'Upload Notes', text: 'Drop your notes or paste text. Studiq reads, summarises and extracts key topics instantly.' },
@@ -19,14 +20,29 @@
     { value: 'Free', label: 'Free to Use' }
   ];
 
-  const contact = [
-    { icon: 'ask', label: 'Email', value: 'samueltobi040@gmail.com', href: 'mailto:samueltobi040@gmail.com' },
-    { icon: 'performance', label: 'Twitter', value: '@devtobbi', href: 'https://twitter.com/devtobbi' },
-    { icon: 'chart', label: 'Portfolio', value: 'tobbi-portfolio.onrender.com', href: 'https://tobbi-portfolio.onrender.com/' }
-  ];
+  let contact = $state([
+    { icon: 'ask', label: 'Email', value: 'samueltobi040@gmail.com', href: 'mailto:samueltobi040@gmail.com' }
+  ]);
+
+  async function loadContactSettings() {
+    try {
+      const { data } = await api.get('/settings');
+      const c = data.data?.contact || data.data || {};
+      const items = [];
+      if (c.email) items.push({ icon: 'ask', label: 'Email', value: c.email, href: `mailto:${c.email}` });
+      if (c.whatsapp) items.push({ icon: 'chart', label: 'WhatsApp', value: c.whatsapp, href: `https://wa.me/${c.whatsapp.replace(/\D/g, '')}` });
+      if (c.linkedin) items.push({ icon: 'performance', label: 'LinkedIn', value: c.linkedin.replace('https://linkedin.com/in/', '').replace('https://www.linkedin.com/in/', ''), href: c.linkedin });
+      if (c.twitter) items.push({ icon: 'sparkles', label: 'Twitter / X', value: c.twitter, href: `https://twitter.com/${c.twitter.replace('@', '')}` });
+      if (c.portfolio) items.push({ icon: 'chart', label: 'Portfolio', value: c.portfolio.replace('https://', ''), href: c.portfolio });
+      if (items.length) contact = items;
+    } catch {
+      // Use default
+    }
+  }
 
   onMount(() => {
     document.documentElement.setAttribute('data-theme', $theme);
+    loadContactSettings();
     // Handle hash navigation (e.g., from footer links)
     const hash = window.location.hash.slice(1);
     if (hash) {
