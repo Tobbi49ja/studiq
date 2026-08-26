@@ -1,6 +1,7 @@
 <script>
   import '../app.css';
   import Sidebar from '$lib/components/Sidebar.svelte';
+  import Icon from '$lib/components/Icon.svelte';
   import { theme } from '$lib/stores/theme';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
@@ -39,11 +40,7 @@
     onclick={() => (sidebarOpen = !sidebarOpen)}
     aria-label="Open menu"
   >
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="3" y1="12" x2="21" y2="12"></line>
-      <line x1="3" y1="6" x2="21" y2="6"></line>
-      <line x1="3" y1="18" x2="21" y2="18"></line>
-    </svg>
+    <Icon name="menu" size={18} />
   </button>
 
   <!-- Overlay -->
@@ -85,19 +82,19 @@
   .hamburger {
     display: none;
     position: fixed;
-    top: 14px;
-    left: 14px;
+    top: 12px;
+    left: 12px;
     z-index: 60;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     color: var(--text);
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transition: background 0.2s, border-color 0.2s;
   }
 
@@ -128,7 +125,7 @@
   @media (max-width: 768px) {
     .main-content { 
       margin-left: 0; 
-      padding: 24px 16px 40px; 
+      padding: 56px 16px 40px; 
     }
     .hamburger    { display: flex; }
     .overlay      { display: block; }

@@ -136,7 +136,7 @@
     <div style="background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 12px; padding: 24px; text-align: center; color: var(--red)">{error}</div>
   {:else}
     <!-- Stats grid -->
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px">
+    <div class="perf-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px">
       <!-- Score ring -->
       <div class="stat-card premium-card" style="padding: 28px; text-align: center">
         <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 20px">Overall Score</h2>
@@ -308,3 +308,11 @@
     </div>
   {/if}
 </div>
+
+<style>
+  @media (max-width: 768px) {
+    .perf-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
