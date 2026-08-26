@@ -3,6 +3,7 @@
   import { api, apiError } from '$lib/api/index.js';
   import { setAuth } from '$lib/stores/auth.js';
   import Navbar from '$lib/components/Navbar.svelte';
+  import { onMount } from 'svelte';
 
   let name = '';
   let email = '';
@@ -30,6 +31,11 @@
       loading = false;
     }
   }
+
+  // Auto-render the Google button on load so it's immediately clickable.
+  onMount(() => {
+    initGoogle();
+  });
 
   // Load the Google Identity Services library, then render the sign-in button.
   // Requires VITE_GOOGLE_CLIENT_ID to be set in the client env.
