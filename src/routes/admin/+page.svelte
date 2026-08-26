@@ -9,17 +9,20 @@
   let stats = null;
   let users = [];
   let notes = [];
+  let auditLogs = [];
 
   async function loadAll() {
     try {
-      const [statsRes, usersRes, notesRes] = await Promise.all([
+      const [statsRes, usersRes, notesRes, auditRes] = await Promise.all([
         api.get('/admin/stats'),
         api.get('/admin/users'),
-        api.get('/admin/notes')
+        api.get('/admin/notes'),
+        api.get('/admin/audit')
       ]);
       stats = statsRes.data.data;
       users = usersRes.data.data || [];
       notes = notesRes.data.data || [];
+      auditLogs = auditRes.data.data || [];
     } catch (e) {
       error = apiError(e);
       if (e?.response?.status === 403) {
@@ -204,6 +207,43 @@
         </div>
       {:else}
         <div style="color:var(--muted); font-size:13px; padding:20px 0; text-align:center">No notes uploaded yet.</div>
+      {/if}
+    </div>
+
+    <!-- Audit log -->
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin-top:28px">
+      <h2 style="color:var(--text); font-size:16px; font-weight:700; margin:0 0 16px">Audit Log ({auditLogs.length})</h2>
+      {#if auditLogs.length}
+        <div style="overflow-x:auto">
+          <table style="width:100%; border-collapse:collapse; font-size:13px">
+            <thead>
+              <tr style="color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; text-align:left">
+                <th style="padding:8px 10px; border-bottom:1px solid var(--border)">Time</th>
+                <th style="padding:8px 10px; border-bottom:1px solid var(--border)">Email</th>
+                <th style="padding:8px 10px; border-bottom:1px solid var(--border)">Action</th>
+                <th style="padding:8px 10px; border-bottom:1px solid var(--border)">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each auditLogs as log (log._id)}
+                <tr style="border-bottom:1px solid var(--border); color:var(--text)">
+                  <td style="padding:10px; color:var(--muted); white-space:nowrap">{fmtDate(log.createdAt)}</td>
+                  <td style="padding:10px; color:var(--muted)">{log.email || '—'}</td>
+                  <td style="padding:10px">
+                    <span style="
+                      display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700;
+                      background:{log.action.startsWith('admin') ? 'rgba(239,68,68,.12)' : log.action.startsWith('auth') ? 'rgba(14,165,233,.15)' : 'rgba(0,255,136,.12)'};
+                      color:{log.action.startsWith('admin') ? 'var(--red)' : log.action.startsWith('auth') ? 'var(--blue)' : 'var(--green)'}
+                    ">{log.action}</span>
+                  </td>
+                  <td style="padding:10px; color:var(--text)">{log.detail || '—'}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {:else}
+        <div style="color:var(--muted); font-size:13px; padding:20px 0; text-align:center">No audit entries yet.</div>
       {/if}
     </div>
   {/if}

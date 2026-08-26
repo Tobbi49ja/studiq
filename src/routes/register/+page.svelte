@@ -9,6 +9,7 @@
   let password = '';
   let confirm = '';
   let loading = false;
+  let googleLoading = false;
   let error = '';
 
   async function submit(e) {
@@ -27,6 +28,42 @@
       error = apiError(e);
     } finally {
       loading = false;
+    }
+  }
+
+  // Load the Google Identity Services library, then render the sign-in button.
+  // Requires VITE_GOOGLE_CLIENT_ID to be set in the client env.
+  function initGoogle() {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      error = 'Google sign-in is not configured yet.';
+      return;
+    }
+    googleLoading = true;
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.onload = () => {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleGoogleCredential
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('googleBtn'),
+        { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill' }
+      );
+      googleLoading = false;
+    };
+    document.head.appendChild(script);
+  }
+
+  async function handleGoogleCredential(response) {
+    try {
+      const { data } = await api.post('/auth/google', { credential: response.credential });
+      setAuth(data.data);
+      goto('/');
+    } catch (e) {
+      error = apiError(e);
     }
   }
 </script>
@@ -73,6 +110,19 @@
       Already have an account?
       <a href="/login">Login</a>
     </p>
+
+    <div class="google-divider">
+      <span>or</span>
+    </div>
+
+    <div id="googleBtn" class="google-btn-wrap">
+      {#if googleLoading}
+        <div class="google-loading">Loading Google sign-in…</div>
+      {/if}
+    </div>
+    <button type="button" class="google-fallback" onclick={initGoogle}>
+      Continue with Google
+    </button>
   </div>
 </div>
 
@@ -166,4 +216,41 @@
   }
   .auth-switch a { color: var(--blue); font-weight: 600; text-decoration: none; }
   .auth-switch a:hover { text-decoration: underline; }
+  .google-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    margin: 18px 0 14px;
+  }
+  .google-divider::before,
+  .google-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .google-btn-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .google-loading {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .google-fallback {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .google-fallback:hover { border-color: var(--blue); }
 </style>
