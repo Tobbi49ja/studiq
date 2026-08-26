@@ -103,6 +103,10 @@
     goto(href);
   }
 
+  function goStudy() {
+    goto('/performance');
+  }
+
   function handleLogoError(e) {
     e.target.style.display = 'none';
   }
@@ -126,8 +130,10 @@
       loading = false;
     }
 
-    // Study plan is a slow AI-backed request — load it in the background
-    loadStudyPlan();
+    // Only load study plan if user has performance data
+    if (summary.length > 0 || history.length > 0) {
+      loadStudyPlan();
+    }
 
     await tick();
     if (error) return;
@@ -144,6 +150,9 @@
   }
 
   function runIntroAnimations() {
+    // Only run animations if stats elements exist (not in onboarding view)
+    if (!document.querySelector('.stat-chip')) return;
+
     // Topbar
     gsap.fromTo('.topbar',
       { y: -20, opacity: 0 },
@@ -175,18 +184,22 @@
     });
 
     // Scroll-triggered sections
-    gsap.fromTo('.quick-actions',
-      { y: 24, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
-        scrollTrigger: { trigger: '.quick-actions', start: 'top 85%' } }
-    );
+    if (document.querySelector('.quick-actions')) {
+      gsap.fromTo('.quick-actions',
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.6, ease: 'power2.out',
+          scrollTrigger: { trigger: '.quick-actions', start: 'top 85%' } }
+      );
+    }
 
-    gsap.fromTo('.gaps-section, .week-section',
-      { y: 24, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.5, stagger: 0.15,
-        ease: 'power2.out',
-        scrollTrigger: { trigger: '.gaps-section', start: 'top 85%' } }
-    );
+    if (document.querySelector('.gaps-section')) {
+      gsap.fromTo('.gaps-section, .week-section',
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.15,
+          ease: 'power2.out',
+          scrollTrigger: { trigger: '.gaps-section', start: 'top 85%' } }
+      );
+    }
   }
 </script>
 
