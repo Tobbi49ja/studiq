@@ -3,34 +3,32 @@
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { api, apiError } from '$lib/api/index.js';
+  import Icon from '$lib/components/Icon.svelte';
   import gsap from 'gsap';
 
-  let quiz = null;
-  let loading = true;
-  let error = '';
-  let current = 0;
-  let answers = [];
-  let selected = null;
-  let answered = false;
-  let timeLeft = 10 * 60; // 10 minutes in seconds
+  let quiz = $state(null);
+  let loading = $state(true);
+  let error = $state('');
+  let current = $state(0);
+  let answers = $state([]);
+  let selected = $state(null);
+  let answered = $state(false);
+  let timeLeft = $state(10 * 60);
   let timerInterval;
-  let submitting = false;
+  let submitting = $state(false);
   let optionRefs = [];
-  let result = null;
+  let result = $state(null);
 
-  // FEATURE 1: Concept Explainer
-  let explaining = false;
-  let explanation = '';
-  let explanationError = '';
+  let explaining = $state(false);
+  let explanation = $state('');
+  let explanationError = $state('');
 
-  // FEATURE 3: AI Answer Feedback
-  let feedback = '';
-  let feedbackLoading = false;
-  let feedbackError = '';
+  let feedback = $state('');
+  let feedbackLoading = $state(false);
+  let feedbackError = $state('');
 
   const LETTERS = ['A', 'B', 'C', 'D'];
 
-  // Strip the model's raw internal reasoning before it reaches the user.
   function cleanResponse(rawText) {
     let text = String(rawText || '').replace(/<thinking[\s\S]*?<\/think>/gi, '').trim();
     const open = text.match(/<thinking/gi);
@@ -38,8 +36,9 @@
     return text;
   }
 
-  $: total = quiz?.questions?.length || 0;
-  $: question = quiz?.questions?.[current];
+  let total = $derived(quiz?.questions?.length || 0);
+  let question = $derived(quiz?.questions?.[current]);
+  let pct = $derived(result ? Math.round((result.score / result.total) * 100) : 0);
 
   function formatTime(s) {
     const m = Math.floor(s / 60);
@@ -60,31 +59,17 @@
     }
   }
 
-  // ANIMATION 3: shake on wrong answer, bounce on correct answer
   function shakeWrong(element) {
-    gsap.fromTo(element,
-      { x: 0 },
-      { x: [-8, 8, -6, 6, -4, 4, 0], duration: 0.5, ease: 'power2.inOut' }
-    );
+    gsap.fromTo(element, { x: 0 }, { x: [-8, 8, -6, 6, -4, 4, 0], duration: 0.5, ease: 'power2.inOut' });
   }
 
   function bounceCorrect(element) {
-    gsap.fromTo(element,
-      { scale: 1 },
-      { scale: [1.04, 0.97, 1], duration: 0.4, ease: 'power2.out' }
-    );
+    gsap.fromTo(element, { scale: 1 }, { scale: [1.04, 0.97, 1], duration: 0.4, ease: 'power2.out' });
   }
 
-  // ANIMATION 3: question card + options entrance per question
   function animateQuestion() {
-    gsap.fromTo('.quiz-card',
-      { opacity: 0, y: -20 },
-      { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(1.2)' }
-    );
-    gsap.fromTo('.option',
-      { opacity: 0, x: -20 },
-      { opacity: 1, x: 0, duration: 0.35, stagger: 0.07, ease: 'power2.out', delay: 0.3 }
-    );
+    gsap.fromTo('.quiz-card', { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.2)' });
+    gsap.fromTo('.option', { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.3, stagger: 0.07, ease: 'power2.out', delay: 0.25 });
   }
 
   function pickOption(index) {
@@ -92,22 +77,18 @@
     selected = index;
     answered = true;
     answers[current] = index;
-
     const correct = question.correct;
     if (index === correct) {
       bounceCorrect(optionRefs[index]);
     } else {
       shakeWrong(optionRefs[index]);
       bounceCorrect(optionRefs[correct]);
-      // FEATURE 3: personalised AI feedback for wrong answers
       fetchFeedback();
     }
   }
 
   async function fetchFeedback() {
-    feedback = '';
-    feedbackError = '';
-    feedbackLoading = true;
+    feedback = ''; feedbackError = ''; feedbackLoading = true;
     try {
       const { data } = await api.post('/quiz/feedback', {
         question: question.question,
@@ -123,12 +104,9 @@
     }
   }
 
-  // FEATURE 1: explain the question topic in simple terms
   async function explainQuestion() {
     if (explaining) return;
-    explaining = true;
-    explanation = '';
-    explanationError = '';
+    explaining = true; explanation = ''; explanationError = '';
     try {
       const { data } = await api.post('/notes/explain', {
         concept: question.topic || question.question,
@@ -145,12 +123,7 @@
   function next() {
     if (current < total - 1) {
       current += 1;
-      selected = null;
-      answered = false;
-      feedback = '';
-      feedbackError = '';
-      explanation = '';
-      explanationError = '';
+      selected = null; answered = false; feedback = ''; feedbackError = ''; explanation = ''; explanationError = '';
       animateQuestion();
     } else {
       finish();
@@ -160,41 +133,31 @@
   async function finish() {
     if (submitting) return;
     submitting = true;
-    const payload = {
-      quizId: quiz._id,
-      noteId: quiz.noteId,
-      subject: quiz.subject || '',
-      answers,
-      timeTakenSeconds: 10 * 60 - timeLeft
-    };
-    console.log('[Studiq quiz] Submitting performance:', JSON.stringify(payload));
     try {
-      const { data } = await api.post('/performance', payload);
-      console.log('[Studiq quiz] Performance response:', data.status, JSON.stringify(data.data));
+      const { data } = await api.post('/performance', {
+        quizId: quiz._id, noteId: quiz.noteId, subject: quiz.subject || '',
+        answers, timeTakenSeconds: 10 * 60 - timeLeft
+      });
       result = data.data;
       clearInterval(timerInterval);
     } catch (e) {
-      console.error('[Studiq quiz] Performance POST failed:', e?.response?.status, apiError(e));
       error = apiError(e);
       submitting = false;
     }
   }
 
-  function optionClass(index) {
-    if (!answered) return 'border-line bg-white hover:border-primary hover:bg-primary-light';
-    if (index === question.correct) return 'border-success bg-green-50';
-    if (index === selected) return 'border-danger bg-red-50';
-    return 'border-line bg-white opacity-60';
+  function optionStyle(index) {
+    if (!answered) return `background: var(--card); border-color: var(--border);`;
+    if (index === question.correct) return `background: var(--green-light); border-color: var(--green);`;
+    if (index === selected) return `background: color-mix(in srgb, var(--red) 10%, transparent); border-color: var(--red);`;
+    return `background: var(--card); border-color: var(--border); opacity: 0.5;`;
   }
 
   onMount(() => {
     loadQuiz();
     timerInterval = setInterval(() => {
       timeLeft -= 1;
-      if (timeLeft <= 0) {
-        clearInterval(timerInterval);
-        finish();
-      }
+      if (timeLeft <= 0) { clearInterval(timerInterval); finish(); }
     }, 1000);
     return () => clearInterval(timerInterval);
   });
@@ -205,97 +168,160 @@
 </svelte:head>
 
 {#if loading}
-  <div class="mx-auto max-w-2xl">
-    <div class="h-40 animate-pulse rounded-2xl bg-slate-200"></div>
+  <div style="max-width: 640px; margin: 0 auto">
+    <div class="skeleton animate-pulse" style="height: 160px; border-radius: 14px; margin-bottom: 16px"></div>
+    {#each Array(4) as _, i (i)}
+      <div class="skeleton animate-pulse" style="height: 52px; border-radius: 10px; margin-bottom: 10px"></div>
+    {/each}
   </div>
 {:else if result}
-  <div class="mx-auto max-w-md rounded-2xl border border-line bg-white p-8 text-center shadow-sm">
-    <div class="text-5xl">{result.score / result.total >= 0.7 ? '🎉' : result.score / result.total >= 0.5 ? '💪' : '📚'}</div>
-    <h2 class="mt-3 text-2xl font-bold text-ink">You scored {result.score}/{result.total}</h2>
-    <p class="mt-1 text-sm text-muted">{Math.round((result.score / result.total) * 100)}% · {result.wrong} wrong</p>
-    <button onclick={() => goto('/performance')} class="mt-6 w-full rounded-xl bg-primary py-3 text-sm font-bold text-white hover:bg-primary-dark">View Performance →</button>
-    <button onclick={() => goto('/flashcards/' + quiz.noteId)} class="mt-2 w-full rounded-xl border border-primary bg-primary-light py-3 text-sm font-bold text-primary hover:bg-blue-100">🃏 Study with Flashcards</button>
+  <!-- Results screen -->
+  <div style="max-width: 480px; margin: 0 auto; text-align: center">
+    <div style="
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 48px 32px;
+    ">
+      <div style="
+        width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 20px;
+        background: {pct >= 70 ? 'var(--green-light)' : pct >= 50 ? 'var(--amber-light)' : 'var(--red-light)'};
+        color: {pct >= 70 ? 'var(--green)' : pct >= 50 ? 'var(--amber)' : 'var(--red)'};
+        display: flex; align-items: center; justify-content: center;
+      ">
+        {#if pct >= 70}
+          <Icon name="check" size={32} />
+        {:else if pct >= 50}
+          <Icon name="sparkles" size={32} />
+        {:else}
+          <Icon name="book" size={32} />
+        {/if}
+      </div>
+      <h2 style="font-size: 28px; font-weight: 800; color: var(--text); margin: 0 0 8px; font-family: 'Plus Jakarta Sans', sans-serif;">
+        {result.score}/{result.total}
+      </h2>
+      <p style="color: var(--muted); font-size: 14px; margin: 0 0 28px; font-weight: 500">{pct}% correct · {result.wrong} wrong</p>
+      <button onclick={() => goto('/performance')} class="btn-primary" style="width: 100%; padding: 13px; font-size: 14px; border-radius: 12px; margin-bottom: 10px">
+        View Performance →
+      </button>
+      <button onclick={() => goto('/flashcards/' + quiz.noteId)} class="btn-secondary" style="width: 100%; padding: 12px; font-size: 14px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 6px">
+        <Icon name="flashcards" size={14} /> Study with Flashcards
+      </button>
+    </div>
   </div>
 {:else if error}
-  <div class="mx-auto max-w-md rounded-xl border border-red-200 bg-red-50 p-6 text-center text-danger">{error}</div>
+  <div style="max-width: 480px; margin: 0 auto; background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 12px; padding: 24px; text-align: center; color: var(--red)">{error}</div>
 {:else}
-  <div class="mx-auto max-w-2xl">
-    <!-- Header: progress dots + timer -->
-    <div class="mb-5 flex items-center justify-between">
-      <div class="flex gap-1.5">
-        {#each Array(total) as _, i}
-          <div
-            class="h-2 w-6 rounded-full {i < current ? 'bg-success' : i === current ? 'bg-primary' : 'bg-slate-200'}"
-          ></div>
-        {/each}
+  <div style="max-width: 640px; margin: 0 auto">
+    <!-- Progress bar + timer -->
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px">
+      <div style="flex: 1">
+        <div style="display: flex; gap: 4px; align-items: center">
+          {#each Array(total) as _, i (i)}
+            <div style="
+              flex: 1; height: 5px; border-radius: 99px; transition: background .3s;
+              background: {i < current ? 'var(--green)' : i === current ? 'var(--blue)' : 'var(--border)'};
+            "></div>
+          {/each}
+        </div>
+        <div style="color: var(--muted); font-size: 11px; margin-top: 6px; font-weight: 600">{current + 1} of {total}</div>
       </div>
-      <div class="rounded-full bg-white px-4 py-1.5 text-sm font-bold {timeLeft < 60 ? 'text-danger' : 'text-ink'}">⏱ {formatTime(timeLeft)}</div>
+      <div style="
+        background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+        padding: 6px 12px; font-size: 13px; font-weight: 700; 
+        color: {timeLeft < 60 ? 'var(--red)' : 'var(--text)'};
+        display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+      ">
+        <Icon name="performance" size={13} />{formatTime(timeLeft)}
+      </div>
     </div>
 
-    <div class="quiz-card rounded-2xl border border-line bg-white p-6 shadow-sm">
-      <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Question {current + 1} of {total}</div>
-      <h2 class="mb-6 text-lg font-bold text-ink">{question.question}</h2>
+    <!-- Question card -->
+    <div class="quiz-card premium-card" style="padding: 28px; margin-bottom: 20px">
+      <div style="font-size: 11px; font-weight: 700; color: var(--blue); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px">Question {current + 1}</div>
+      <h2 style="font-size: 17px; font-weight: 700; color: var(--text); margin: 0 0 24px; line-height: 1.5">{question.question}</h2>
 
-      <div class="space-y-3">
-        {#each question.options as option, i}
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        {#each question.options as option, i (i)}
           <button
             bind:this={optionRefs[i]}
             onclick={() => pickOption(i)}
             disabled={answered}
-            class="option flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-medium transition {optionClass(i)}"
+            class="option"
+            style="
+              width: 100%; display: flex; align-items: center; gap: 12px;
+              padding: 13px 16px; border-radius: 10px; border: 1.5px solid; text-align: left;
+              font-family: inherit; cursor: {answered ? 'default' : 'pointer'};
+              transition: border-color .18s, background .18s, transform .18s;
+              {optionStyle(i)}
+            "
           >
-            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-muted">{LETTERS[i]}</span>
-            <span class="text-ink">{option.replace(/^[A-D]\.\s*/, '')}</span>
+            <span style="
+              width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+              background: var(--surface); border: 1px solid var(--border);
+              display: flex; align-items: center; justify-content: center;
+              font-size: 11px; font-weight: 800; color: var(--muted);
+            ">{LETTERS[i]}</span>
+            <span style="font-size: 13.5px; color: var(--text); font-weight: 500; flex: 1">{option.replace(/^[A-D]\.\s*/, '')}</span>
             {#if answered && i === question.correct}
-              <span class="ml-auto text-success">✓</span>
+              <span style="color: var(--green); flex-shrink: 0"><Icon name="check" size={14} /></span>
             {:else if answered && i === selected}
-              <span class="ml-auto text-danger">✗</span>
+              <span style="color: var(--red); flex-shrink: 0"><Icon name="x" size={14} /></span>
             {/if}
           </button>
         {/each}
       </div>
 
       {#if answered}
-        <div class="mt-5 rounded-xl bg-blue-50 p-4 text-sm text-ink">
-          <div class="mb-1 font-bold text-primary">
-            {selected === question.correct ? 'Correct! 🎉' : `Not quite — the answer is ${LETTERS[question.correct]}.`}
+        <!-- Answer explanation -->
+        <div style="
+          margin-top: 20px; background: var(--blue-light); border: 1px solid color-mix(in srgb, var(--blue) 20%, var(--border));
+          border-radius: 10px; padding: 16px;
+        ">
+          <div style="font-size: 13px; font-weight: 700; color: var(--blue); margin-bottom: 6px">
+            {selected === question.correct ? 'Correct!' : `The answer is ${LETTERS[question.correct]}`}
           </div>
-          <div class="text-muted">{question.explanation}</div>
+          <div style="font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.6">{question.explanation}</div>
         </div>
 
         {#if selected !== question.correct}
-          <!-- FEATURE 3: AI Coach feedback panel -->
-          <div class="mt-3 rounded-xl border border-purple-100 bg-purple-50 p-4 text-sm text-ink">
-            <div class="mb-1 flex items-center gap-1.5 font-bold text-purple-700">💬 AI Coach</div>
+          <!-- AI Coach -->
+          <div style="
+            margin-top: 12px; background: color-mix(in srgb, var(--purple) 8%, var(--surface));
+            border: 1px solid color-mix(in srgb, var(--purple) 20%, var(--border));
+            border-radius: 10px; padding: 16px;
+          ">
+            <div style="display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--purple); margin-bottom: 8px">
+              <Icon name="ask" size={13} /> AI Coach
+            </div>
             {#if feedbackLoading}
-              <div class="h-4 w-3/4 animate-pulse rounded bg-purple-200"></div>
+              <div style="height: 14px; width: 70%; background: color-mix(in srgb, var(--purple) 18%, var(--border)); border-radius: 6px; animation: pulse 1.5s ease-in-out infinite"></div>
             {:else if feedback}
-              <div class="text-muted">{feedback}</div>
+              <div style="font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.6">{feedback}</div>
             {:else if feedbackError}
-              <div class="text-danger">Couldn't load AI feedback — {feedbackError}</div>
+              <div style="color: var(--red); font-size: 12.5px">Couldn't load feedback — {feedbackError}</div>
             {/if}
           </div>
         {/if}
 
-        <button onclick={next} class="mt-4 w-full rounded-xl bg-primary py-3 text-sm font-bold text-white hover:bg-primary-dark">
+        <button onclick={next} class="btn-primary" style="width: 100%; margin-top: 16px; padding: 13px; font-size: 14px; border-radius: 10px">
           {current < total - 1 ? 'Next question →' : 'Finish quiz'}
         </button>
       {:else}
-        <!-- FEATURE 1: Explain this concept -->
+        <!-- Concept explainer button -->
         <button
           onclick={explainQuestion}
           disabled={explaining}
-          class="mt-5 w-full rounded-xl border border-primary bg-primary-light py-2.5 text-sm font-semibold text-primary transition hover:bg-blue-100 disabled:opacity-60"
+          class="btn-secondary"
+          style="width: 100%; margin-top: 20px; padding: 12px; font-size: 13px; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 7px; {explaining ? 'opacity: .6' : ''}"
         >
-          {explaining ? '🤖 Explaining…' : '💡 Explain this concept'}
+          <Icon name="ask" size={13} />
+          {explaining ? 'Explaining…' : 'Explain this concept'}
         </button>
         {#if explanation || explanationError}
-          <div class="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-ink">
+          <div style="margin-top: 12px; background: var(--blue-light); border: 1px solid color-mix(in srgb, var(--blue) 18%, var(--border)); border-radius: 10px; padding: 16px">
             {#if explanationError}
-              <div class="text-danger">Couldn't explain — {explanationError}</div>
+              <div style="color: var(--red); font-size: 12.5px">Couldn't explain — {explanationError}</div>
             {:else}
-              <div class="mb-1 font-bold text-primary">Concept explainer</div>
-              <div class="whitespace-pre-line text-muted">{explanation}</div>
+              <div style="font-size: 12px; font-weight: 700; color: var(--blue); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em">Concept explainer</div>
+              <div style="font-size: 13px; color: var(--text); font-weight: 500; line-height: 1.7; white-space: pre-line">{explanation}</div>
             {/if}
           </div>
         {/if}
@@ -303,3 +329,10 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .option:not([disabled]):hover {
+    transform: translateX(3px);
+    border-color: var(--blue) !important;
+  }
+</style>

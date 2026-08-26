@@ -30,44 +30,45 @@
   });
 </script>
 
-<div bind:this={el} class="gaps-panel" style="background:var(--bg-card); border:1px solid var(--border); border-radius:20px; padding:24px">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-    <h2 style="color:var(--text-primary); font-size:16px; font-weight:700; margin:0">Learning Gaps</h2>
-    <Badge text="Needs Attention" color="var(--accent-red)" />
+<div bind:this={el} class="premium-card gaps-panel" style="padding: 24px">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px">
+    <h2 style="color: var(--text); font-size: 16px; font-weight: 700; margin: 0">Learning Gaps</h2>
+    <Badge text="Needs Attention" color="var(--red)" />
   </div>
-  <div style="display:flex; flex-direction:column; gap:12px">
+  
+  <div style="display: flex; flex-direction: column; gap: 10px">
     {#if gaps.length}
       {#each gaps as g, i (i)}
         {@const sev = severity(g)}
         <div
           class="gap-item"
           style="
-            display:flex; align-items:center; justify-content:space-between;
-            background:var(--bg-surface); border-radius:12px; padding:12px 16px;
-            border:1px solid {sev === 'high' ? 'color-mix(in srgb, var(--accent-red) 15%, transparent)' : 'var(--border)'};
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--surface); border-radius: 8px; padding: 12px 16px;
+            border: 1px solid {sev === 'high' ? 'color-mix(in srgb, var(--red) 15%, var(--border))' : 'var(--border)'};
           "
         >
-          <div style="display:flex; align-items:center; gap:10px; min-width:0">
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0">
             <SeverityDot s={sev} />
-            <div style="min-width:0">
-              <div style="color:var(--text-primary); font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{g.topic}</div>
-              <div style="color:var(--text-muted); font-size:11px">{g.subject} · {sessionText(g)}</div>
+            <div style="min-width: 0">
+              <div style="color: var(--text); font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{g.topic}</div>
+              <div style="color: var(--muted); font-size: 11px; font-weight: 500;">{g.subject} · {sessionText(g)}</div>
             </div>
           </div>
           <button
             onclick={onStudyNow}
+            class="btn-secondary"
             style="
-              background:transparent; border:1px solid var(--border); color:var(--accent-blue);
-              font-size:11px; font-weight:700; padding:5px 12px; border-radius:8px; cursor:pointer;
-              letter-spacing:.04em; flex:0 0 auto; font-family:inherit;
+              font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+              letter-spacing: .02em; flex: 0 0 auto;
             "
           >Study Now</button>
         </div>
       {/each}
     {:else}
-      <div style="color:var(--text-muted); font-size:13px; padding:12px 0; text-align:center">
-        No learning gaps detected — great work! 🎉
-      </div>
+<div style="color: var(--muted); font-size: 13px; padding: 16px 0; text-align: center; font-weight: 500;">
+          No learning gaps detected — great work!
+        </div>
     {/if}
   </div>
 </div>

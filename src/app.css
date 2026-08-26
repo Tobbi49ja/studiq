@@ -1,84 +1,271 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
-  --bg:        #050A0F;
-  --surface:   #0B1320;
-  --card:      #0F1C30;
-  --border:    #1E3A5F;
-  --text:      #F0F9FF;
-  --muted:     #64748B;
-  --blue:      #0EA5E9;
-  --green:     #00FF88;
-  --teal:      #06B6D4;
-  --purple:    #818CF8;
-  --red:       #EF4444;
-  --amber:     #F59E0B;
-  --radius:    14px;
-  --sidebar-w: 240px;
+   /* ── Dark theme (default) ── */
+   --bg:          #090a0f;
+   --surface:     #0f1117;
+   --card:        #141720;
+   --border:      rgba(255,255,255,0.08);
+   --text:        #f1f5f9;
+   --muted:       #64748b;
+   --blue:        #6366f1;
+   --blue-light:  rgba(99, 102, 241, 0.1);
+   --green:       #10b981;
+   --green-light: rgba(16, 185, 129, 0.1);
+   --teal:        #06b6d4;
+   --teal-light:  rgba(6, 182, 212, 0.1);
+   --purple:      #8b5cf6;
+   --purple-light:rgba(139, 92, 246, 0.1);
+   --red:         #ef4444;
+   --red-light:   rgba(239, 68, 68, 0.1);
+   --amber:       #f59e0b;
+   --amber-light: rgba(245, 158, 11, 0.1);
+   --radius:      12px;
+   --sidebar-w:   240px;
 
-  /* Legacy aliases (older components) */
-  --bg-void:        var(--bg);
-  --bg-surface:     var(--surface);
-  --bg-card:        var(--card);
-  --text-primary:   var(--text);
-  --text-muted:     var(--muted);
-  --accent-blue:    var(--blue);
-  --accent-green:   var(--green);
-  --accent-teal:    var(--teal);
-  --accent-violet:  var(--purple);
-  --accent-red:     var(--red);
-  --accent-amber:   var(--amber);
-}
+   /* Typography scale */
+   --text-xs:   11px;
+   --text-sm:   13px;
+   --text-base: 14px;
+   --text-md:   15px;
+   --text-lg:   18px;
+   --text-xl:   22px;
+   --text-2xl:  28px;
+   --text-3xl:  36px;
 
-[data-theme="light"] {
-  --bg:      #F8FAFC;
-  --surface: #FFFFFF;
-  --card:    #FFFFFF;
-  --border:  #E2E8F0;
-  --text:    #0F172A;
-  --muted:   #64748B;
-  --blue:    #2563EB;
-  --green:   #16A34A;
-  --teal:    #0891B2;
-  --purple:  #7C3AED;
-}
+   /* Spacing system */
+   --space-1: 4px;
+   --space-2: 8px;
+   --space-3: 12px;
+   --space-4: 16px;
+   --space-5: 20px;
+   --space-6: 24px;
+   --space-8: 32px;
+   --space-10: 40px;
+   --space-12: 48px;
+   --space-16: 64px;
+
+   /* Legacy aliases (for older components) */
+   --bg-void:        var(--bg);
+   --bg-surface:     var(--surface);
+   --bg-card:        var(--card);
+   --text-primary:   var(--text);
+   --text-muted:     var(--muted);
+   --accent-blue:    var(--blue);
+   --accent-green:   var(--green);
+   --accent-teal:    var(--teal);
+   --accent-violet:  var(--purple);
+   --accent-red:     var(--red);
+   --accent-amber:   var(--amber);
+ }
+
+ [data-theme="light"] {
+   --bg:          #f8fafc;
+   --surface:     #ffffff;
+   --card:        #ffffff;
+   --border:      #e2e8f0;
+   --text:        #0f172a;
+   --muted:       #64748b;
+   --blue:        #4f46e5;
+   --blue-light:  rgba(79, 70, 229, 0.08);
+   --green:       #059669;
+   --green-light: rgba(5, 150, 105, 0.08);
+   --teal:        #0891b2;
+   --teal-light:  rgba(8, 145, 178, 0.08);
+   --purple:      #7c3aed;
+   --purple-light:rgba(124, 58, 237, 0.08);
+   --red:         #dc2626;
+   --red-light:   rgba(220, 38, 38, 0.08);
+   --amber:       #d97706;
+   --amber-light: rgba(217, 119, 6, 0.08);
+ }
 
 body {
   font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: var(--surface); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+/* Premium Typography classes */
+h1, h2, h3, h4, .font-display {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
 
-@keyframes pulse-slow {
-  0%,100% { opacity: .5; }
-  50%      { opacity: 1; }
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
 }
-@keyframes glow {
-  0%,100% { text-shadow: 0 0 8px var(--green), 0 0 20px var(--green); }
-  50%      { text-shadow: 0 0 16px var(--green), 0 0 40px var(--green); }
+::-webkit-scrollbar-track {
+  background: var(--border);
 }
-@keyframes ping {
-  0%       { transform: scale(1); opacity: .8; }
-  75%,100% { transform: scale(2.2); opacity: 0; }
+::-webkit-scrollbar-thumb {
+  background: var(--blue);
+  border-radius: 99px;
 }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Core premium UI components */
+.premium-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 8px 24px -8px rgba(0,0,0,0.04);
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+}
+
+.premium-card:hover {
+  border-color: color-mix(in srgb, var(--blue) 25%, var(--border));
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03), 0 16px 32px -8px rgba(0,0,0,0.06);
+}
+
+/* Standard Premium Input Fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: var(--text-base);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-light);
+}
+
+/* Premium Button Styling */
+.btn-primary {
+  background: var(--blue);
+  color: #ffffff !important;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn-primary:hover {
+  opacity: 0.95;
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--card);
+  color: var(--text) !important;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  font-size: var(--text-base);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.btn-secondary:hover {
+  background: var(--surface);
+  border-color: var(--muted);
+}
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+/* Animations */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 8px var(--green), 0 0 20px var(--green-light); }
+  50%      { text-shadow: 0 0 16px var(--green), 0 0 30px var(--green-light); }
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@keyframes ping {
+  0%       { transform: scale(1); opacity: .6; }
+  75%,100% { transform: scale(2.2); opacity: 0; }
+}
 
-/* Sticky dashboard header — clears the fixed hamburger on mobile via the
-   media-query `top` overrides below. */
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--card) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Button: ghost */
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 10px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-ghost:hover {
+  background: var(--card);
+  border-color: var(--blue);
+}
+
+/* Sticky topbar layout */
 .dashboard-topbar {
   position: sticky;
   top: 0;
@@ -86,15 +273,13 @@ body {
   z-index: 10;
 }
 
-/* Radar chart: allow the fixed-size SVG to scroll within its card on narrow
-   screens instead of overflowing and breaking the grid. */
+/* Radar chart wrapper */
 .radar-wrap {
   width: 100%;
   overflow-x: auto;
 }
 
-/* Shared stat/metric card. All styling comes from theme tokens so it
-   tracks dark/light mode automatically — no hardcoded Tailwind colors. */
+/* Shared stat/metric card styling */
 .stat-card {
   display: flex;
   flex-direction: column;
@@ -104,38 +289,33 @@ body {
   background: var(--card);
   padding: 24px;
   color: var(--text);
-  transition: background 0.2s, border 0.2s;
+  transition: background 0.2s, border 0.2s, transform 0.2s, box-shadow 0.2s;
 }
 
 /* ── Tablet ── */
 @media (max-width: 1024px) {
   :root { --sidebar-w: 200px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  /* Dashboard main grid stacks cleanly full-width so the uneven-height
-     columns align instead of a 2-col layout leaving an awkward gap. */
-  .main-grid  { grid-template-columns: 1fr; }
+  .main-grid  { grid-template-columns: 1fr 1fr; }
   .bottom-grid { grid-template-columns: 1fr; }
 }
 
-/* ── 768px and below ── */
+/* ── Mobile 768px and below ── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }
 
   /* Sidebar hidden off-canvas */
   .sidebar {
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .sidebar.open { transform: translateX(0); }
 
-  /* Main content full width */
   .main-content {
     margin-left: 0;
-    padding-top: 0;
+    padding: 16px !important;
   }
 
-  /* Topbar / navbar: STICKY not fixed
-     so cards naturally scroll underneath */
   .topbar, .dashboard-navbar {
     position: sticky;
     top: 0;
@@ -148,29 +328,26 @@ body {
     align-items: center;
   }
 
-  /* Cards scroll UNDER the sticky navbar naturally */
   .stats-grid, .main-grid {
     position: relative;
     z-index: 1;
   }
-  
 
-  /* Grids: 2 column */
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 16px;
+    gap: 12px;
+    padding: 12px 0;
   }
 
   .main-grid {
     grid-template-columns: 1fr;
     gap: 16px;
-    padding: 0 16px;
+    padding: 0;
   }
 
   .quick-actions-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    gap: 12px;
   }
 
   .bottom-grid {
@@ -178,12 +355,11 @@ body {
     gap: 16px;
   }
 
-  .page-padding { padding: 16px; }
+  .page-padding { padding: 0; }
 }
 
-/* ── 425px and below ── */
+/* ── Small Mobile 425px and below ── */
 @media (max-width: 425px) {
-  /* Kill ALL grid and flex layouts */
   .stats-grid,
   .main-grid,
   .bottom-grid,
@@ -193,17 +369,16 @@ body {
   .perf-grid {
     display: flex !important;
     flex-direction: column !important;
-    gap: 10px !important;
-    padding: 0 12px !important;
+    gap: 12px !important;
+    padding: 0 !important;
   }
-  /* Stat strip: 3 compact cards in a single horizontal row,
-     the 4th wraps to the next line. */
+
   .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    padding: 8px !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
   }
+
   .stats-grid .stat-chip {
     flex-direction: column;
     align-items: center;
@@ -213,25 +388,28 @@ body {
     text-align: center;
     width: 100% !important;
   }
+
   .stats-grid .stat-chip > div:first-child {
-    width: 26px !important;
-    height: 26px !important;
+    width: 28px !important;
+    height: 28px !important;
     font-size: 13px !important;
-    border-radius: 7px !important;
+    border-radius: 6px !important;
   }
+
   .stats-grid .stat-chip > div:nth-child(2) {
     display: flex;
     flex-direction: column;
     align-items: center;
   }
+
   .stats-grid .stat-chip > div:nth-child(2) > div:first-child {
     font-size: 15px !important;
   }
+
   .stats-grid .stat-chip > div:nth-child(2) > div:nth-child(2) {
     font-size: 9px !important;
   }
 
-  /* Stat cards full width stacked */
   .stat-card {
     width: 100%;
     flex-direction: row;
@@ -241,40 +419,34 @@ body {
     padding: 14px 16px;
   }
 
-  /* Quick action buttons full width */
   .quick-btn {
     width: 100%;
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    padding: 14px 16px !important;
   }
 
-  /* Score ring smaller */
   .ring-svg { width: 80px; height: 80px; }
 
-  /* Topbar title smaller + wraps to a second line instead of clipping */
   .topbar-title,
   .dashboard-title {
-    font-size: 14px !important;
+    font-size: 15px !important;
     overflow-wrap: break-word;
     word-break: break-word;
   }
 
-  /* Dashboard topbar: let the heading stack over the session pill */
   .dashboard-topbar {
     flex-wrap: wrap;
     gap: 8px !important;
     padding: 8px 0 16px !important;
   }
 
-  /* Week plan: single column */
   .week-day {
     width: 100%;
     border-radius: var(--radius);
   }
 
-  /* Footer stacked + centered so nothing overflows on tiny screens */
   .footer {
     flex-direction: column !important;
     gap: 12px !important;
@@ -289,37 +461,22 @@ body {
     gap: 8px;
   }
 
-  /* Hide non-essential sidebar items on tiny screens */
   .nav-label { font-size: 9px; }
   .nav-item  { padding: 8px 10px; font-size: 12.5px; }
 
-  /* General overflow protection */
   * { max-width: 100%; word-break: break-word; }
   img, svg { max-width: 100%; }
 }
 
-/* ── 375px and below ── */
+/* ── Micro-screens 375px and below ── */
 @media (max-width: 375px) {
-  .stats-grid { padding: 0 8px !important; }
   .main-content { padding-bottom: 80px; }
   .stat-card { padding: 12px; }
-  .page-padding { padding: 8px !important; }
-
-  .topbar {
-    padding: 10px 12px;
-  }
-
-  /* Hamburger clear of content */
-  .hamburger {
-    width: 34px;
-    height: 34px;
-  }
+  .topbar { padding: 10px 12px; }
+  .hamburger { width: 34px; height: 34px; }
 }
 
-/* ─── Legacy Tailwind surface theming ────────────────────────────────
-   Page-level classes used by older pages now map to the shared theme
-   tokens so dark/light stays consistent across Quiz/Flashcards/Performance.
-   Applied with :global-safe normal specificity; these cards inherit tokens. */
+/* ─── Legacy Tailwind surface mappings ─── */
 .bg-white,
 .bg-card {
   background-color: var(--card);
@@ -335,25 +492,22 @@ body {
 .bg-primary-light,
 .bg-blue-50,
 .bg-blue-100 {
-  background-color: color-mix(in srgb, var(--blue) 12%, transparent);
+  background-color: var(--blue-light);
 }
 .bg-green-50,
 .bg-green-100 {
-  background-color: color-mix(in srgb, var(--green) 12%, transparent);
+  background-color: var(--green-light);
 }
 .bg-red-50,
 .bg-red-100 {
-  background-color: color-mix(in srgb, var(--red) 12%, transparent);
+  background-color: var(--red-light);
 }
 .bg-amber-50,
 .bg-amber-100 {
-  background-color: color-mix(in srgb, var(--amber) 14%, transparent);
-}
-.bg-amber-200 {
-  background-color: color-mix(in srgb, var(--amber) 28%, transparent);
+  background-color: var(--amber-light);
 }
 .bg-purple-50 {
-  background-color: color-mix(in srgb, var(--purple) 12%, transparent);
+  background-color: rgba(139, 92, 246, 0.08);
 }
 .bg-primary {
   background-color: var(--blue);

@@ -1,6 +1,6 @@
 <script>
   export let pct = 0;
-  export let color = '#0EA5E9';
+  export let color = 'var(--blue)';
   export let size = 96;
 
   const r = 38;
@@ -25,6 +25,6 @@
       stroke-linecap="round"
       style="transition: stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)"
     />
-    <text x={cx} y={cy + 5} text-anchor="middle" fill="var(--text-primary)" font-size="15" font-weight="700">{pct}%</text>
+    <text x={cx} y={cy + 5} text-anchor="middle" fill="var(--text)" font-size="15" font-weight="700">{pct}%</text>
   </svg>
 </div>

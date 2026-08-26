@@ -1,63 +1,41 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from '$lib/api/index.js';
+  import Icon from '$lib/components/Icon.svelte';
   import gsap from 'gsap';
 
-  let summary = [];
-  let history = [];
-  let loading = true;
-  let error = '';
+  let summary = $state([]);
+  let history = $state([]);
+  let loading = $state(true);
+  let error = $state('');
 
-  // FEATURE 4: Personalised study plan
-  let studyPlan = null;
-  let planLoading = false;
-  let planError = '';
-  let planGeneratedAt = null;
+  let studyPlan = $state(null);
+  let planLoading = $state(false);
+  let planError = $state('');
+  let planGeneratedAt = $state(null);
 
   const R = 52;
   const CIRC = 2 * Math.PI * R;
 
-  $: overall = (() => {
+  let overall = $derived((() => {
     const totalQ = summary.reduce((a, s) => a + (s.totalQuestions || 0), 0);
     const totalS = summary.reduce((a, s) => a + (s.totalScore || 0), 0);
     return totalQ ? Math.round((totalS / totalQ) * 100) : 0;
-  })();
-  $: weakTopics = summary.flatMap((s) => s.weakTopics || []).sort((a, b) => a.avgScore - b.avgScore).slice(0, 6);
-  $: bestSubject = [...summary].sort((a, b) => b.avgScore - a.avgScore)[0];
+  })());
 
-  function subjectEmoji(subject) {
-    const map = {
-      Chemistry: '⚗️',
-      Biology: '🔬',
-      Physics: '⚡',
-      Maths: '📐',
-      Mathematics: '📐',
-      Geography: '🗺️',
-      History: '📜',
-      Govt: '🌍',
-      Government: '🌍',
-      English: '✏️'
-    };
-    return map[subject] || '📚';
-  }
+  let weakTopics = $derived(summary.flatMap((s) => s.weakTopics || []).sort((a, b) => a.avgScore - b.avgScore).slice(0, 6));
+  let bestSubject = $derived([...summary].sort((a, b) => b.avgScore - a.avgScore)[0]);
 
   function barColor(score) {
-    if (score >= 70) return 'bg-success';
-    if (score >= 50) return 'bg-warning';
-    return 'bg-danger';
-  }
-
-  function scoreClass(score) {
-    if (score >= 70) return 'text-success';
-    if (score >= 50) return 'text-warning';
-    return 'text-danger';
+    if (score >= 70) return 'var(--green)';
+    if (score >= 50) return 'var(--amber)';
+    return 'var(--red)';
   }
 
   function dateLabel(iso) {
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   }
 
-  // FEATURE 4: generate / load study plan
   function loadSavedPlan() {
     try {
       const saved = localStorage.getItem('studiq-study-plan');
@@ -68,9 +46,7 @@
           planGeneratedAt = parsed.generatedAt || null;
         }
       }
-    } catch (e) {
-      // ignore corrupted storage
-    }
+    } catch {}
   }
 
   function savePlan(plan) {
@@ -78,14 +54,11 @@
       const payload = { ...plan, generatedAt: new Date().toISOString() };
       localStorage.setItem('studiq-study-plan', JSON.stringify(payload));
       planGeneratedAt = payload.generatedAt;
-    } catch (e) {
-      // storage may be unavailable — plan still shown this session
-    }
+    } catch {}
   }
 
   async function generatePlan() {
-    planError = '';
-    planLoading = true;
+    planError = ''; planLoading = true;
     try {
       const { data } = await api.post('/performance/studyplan', { daysAvailable: 7 });
       studyPlan = data.data;
@@ -98,13 +71,8 @@
   }
 
   function clearPlan() {
-    studyPlan = null;
-    planGeneratedAt = null;
-    try {
-      localStorage.removeItem('studiq-study-plan');
-    } catch (e) {
-      // ignore
-    }
+    studyPlan = null; planGeneratedAt = null;
+    try { localStorage.removeItem('studiq-study-plan'); } catch {}
   }
 
   onMount(async () => {
@@ -119,24 +87,18 @@
       loading = false;
     }
 
-    // ANIMATION 1: score ring, count-up, stat cards, weak cards
     const score = Math.min(overall, 100) / 100;
-    const offset = 251 - 251 * score;
+    const offset = CIRC - CIRC * score;
 
     gsap.fromTo('#scoreRing',
-      { strokeDashoffset: 251 },
+      { strokeDashoffset: CIRC },
       { strokeDashoffset: offset, duration: 1.8, ease: 'power3.out' }
     );
 
     const obj = { val: 0 };
     gsap.to(obj, {
-      val: overall,
-      duration: 1.8,
-      ease: 'power3.out',
-      onUpdate: () => {
-        const el = document.getElementById('scoreValue');
-        if (el) el.textContent = Math.round(obj.val) + '%';
-      }
+      val: overall, duration: 1.8, ease: 'power3.out',
+      onUpdate: () => { const el = document.getElementById('scoreValue'); if (el) el.textContent = Math.round(obj.val) + '%'; }
     });
 
     gsap.fromTo('.stat-card',
@@ -146,7 +108,7 @@
 
     gsap.fromTo('.weak-card',
       { opacity: 0, scale: 0.95 },
-      { opacity: 1, scale: 1, duration: 0.4, stagger: 0.08, ease: 'back.out(1.4)', delay: 0.5 }
+      { opacity: 1, scale: 1, duration: 0.4, stagger: 0.08, ease: 'back.out(1.4)', delay: 0.4 }
     );
   });
 </script>
@@ -155,184 +117,194 @@
   <title>Performance — Studiq</title>
 </svelte:head>
 
-{#if loading}
-  <div class="grid gap-4 md:grid-cols-2">
-    <div class="h-64 animate-pulse rounded-2xl bg-slate-200"></div>
-    <div class="h-64 animate-pulse rounded-2xl bg-slate-200"></div>
+<div style="max-width: 1200px; margin: 0 auto">
+  <!-- Page header -->
+  <div style="margin-bottom: 28px">
+    <h1 style="font-size: 26px; font-weight: 800; letter-spacing: -.03em; color: var(--text); margin: 0 0 6px; font-family: 'Plus Jakarta Sans', sans-serif;">
+      <span style="color: var(--purple)">Performance</span> Overview
+    </h1>
+    <p style="color: var(--muted); font-size: 13.5px; margin: 0; font-weight: 500">Track your progress and identify where to focus next.</p>
   </div>
-{:else if error}
-  <div class="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-danger">{error}</div>
-{:else}
-  <div class="grid gap-6 lg:grid-cols-3">
-    <!-- Score ring -->
-    <div class="stat-card">
-      <h3 class="mb-4 text-base font-bold text-ink">Overall Score</h3>
-      <div class="relative">
-        <svg width="140" height="140" viewBox="0 0 140 140">
-          <circle cx="70" cy="70" r={R} fill="none" stroke="#e2e8f0" stroke-width="12" />
-          <circle
-            id="scoreRing"
-            cx="70"
-            cy="70"
-            r={R}
-            fill="none"
-            stroke="#2563eb"
-            stroke-width="12"
-            stroke-linecap="round"
-            stroke-dasharray={CIRC}
-            stroke-dashoffset={CIRC}
-            transform="rotate(-90 70 70)"
-          />
-        </svg>
-        <div class="absolute inset-0 flex flex-col items-center justify-center">
-          <span id="scoreValue" class="text-3xl font-bold text-ink">{overall}%</span>
-          <span class="text-xs text-muted">avg</span>
+
+  {#if loading}
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px">
+      {#each Array(3) as _, i (i)}
+        <div class="skeleton animate-pulse" style="height: 280px; border-radius: 14px"></div>
+      {/each}
+    </div>
+  {:else if error}
+    <div style="background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 12px; padding: 24px; text-align: center; color: var(--red)">{error}</div>
+  {:else}
+    <!-- Stats grid -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px">
+      <!-- Score ring -->
+      <div class="stat-card premium-card" style="padding: 28px; text-align: center">
+        <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 20px">Overall Score</h2>
+        <div style="position: relative; width: 140px; height: 140px; margin: 0 auto">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r={R} fill="none" stroke="var(--border)" stroke-width="12" />
+            <circle id="scoreRing" cx="70" cy="70" r={R} fill="none" stroke="var(--purple)"
+              stroke-width="12" stroke-linecap="round" stroke-dasharray={CIRC} stroke-dashoffset={CIRC}
+              transform="rotate(-90 70 70)" />
+          </svg>
+          <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center">
+            <span id="scoreValue" style="font-size: 28px; font-weight: 800; color: var(--text); font-family: 'Plus Jakarta Sans', sans-serif">0%</span>
+            <span style="font-size: 11px; color: var(--muted); font-weight: 600">average</span>
+          </div>
         </div>
+        <p style="margin-top: 16px; font-size: 13px; color: var(--muted); font-weight: 500">
+          {#if bestSubject}
+            Best: <span style="font-weight: 700; color: var(--text)">{bestSubject.subject}</span> at {bestSubject.avgScore}%
+          {:else}
+            Complete a quiz to see your score.
+          {/if}
+        </p>
       </div>
-      <p class="mt-4 text-center text-sm text-muted">
-        {#if bestSubject}
-          Best subject: <span class="font-semibold text-ink">{bestSubject.subject}</span> at {bestSubject.avgScore}%
+
+      <!-- Subject breakdown -->
+      <div class="stat-card premium-card" style="padding: 28px">
+        <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 20px">Subject Breakdown</h2>
+        {#if summary.length}
+          <div style="display: flex; flex-direction: column; gap: 16px">
+            {#each summary as s}
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px">
+                  <span style="font-size: 13px; font-weight: 600; color: var(--text)">{s.subject}</span>
+                  <span style="font-size: 13px; font-weight: 700; color: {barColor(s.avgScore)}">{s.avgScore}%</span>
+                </div>
+                <div style="height: 6px; border-radius: 99px; background: var(--border)">
+                  <div style="height: 6px; border-radius: 99px; background: {barColor(s.avgScore)}; width: {s.avgScore}%; transition: width 1s ease"></div>
+                </div>
+                <div style="margin-top: 5px; font-size: 11px; color: var(--muted); font-weight: 500">{s.quizCount} quiz{s.quizCount === 1 ? '' : 'zes'} taken</div>
+              </div>
+            {/each}
+          </div>
         {:else}
-          Complete a quiz to see your score.
+          <div style="color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; font-weight: 500">No subjects yet — take your first quiz.</div>
         {/if}
-      </p>
-    </div>
-
-    <!-- Subject breakdown -->
-    <div class="stat-card">
-      <h3 class="mb-4 text-base font-bold text-ink">Subject Breakdown</h3>
-      {#if summary.length}
-        <div class="space-y-4">
-          {#each summary as s}
-            <div>
-              <div class="mb-1 flex items-center justify-between text-sm">
-                <span class="font-semibold text-ink">{subjectEmoji(s.subject)} {s.subject}</span>
-                <span class="font-bold {scoreClass(s.avgScore)}">{s.avgScore}%</span>
-              </div>
-              <div class="h-2.5 rounded-full bg-slate-100">
-                <div class="h-2.5 rounded-full {barColor(s.avgScore)}" style="width:{s.avgScore}%"></div>
-              </div>
-              <div class="mt-0.5 text-xs text-muted">{s.quizCount} quiz{s.quizCount === 1 ? '' : 'zes'} taken</div>
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="py-10 text-center text-sm text-muted">No subjects yet — take your first quiz.</div>
-      {/if}
-    </div>
-
-    <!-- Weak areas (third column) -->
-    <div class="stat-card">
-      <h3 class="mb-4 text-base font-bold text-ink">Weak Areas</h3>
-      {#if weakTopics.length}
-        <div class="flex flex-col gap-3">
-          {#each weakTopics as t}
-            <div class="weak-card rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <div class="text-xs font-semibold uppercase tracking-wide text-amber-600">Needs work</div>
-              <div class="mt-1 truncate text-sm font-bold text-ink">{t.topic}</div>
-              <div class="mt-2 flex items-center gap-2">
-                <div class="h-1.5 flex-1 rounded-full bg-amber-200">
-                  <div class="h-1.5 rounded-full bg-warning" style="width:{t.avgScore}%"></div>
-                </div>
-                <span class="text-xs font-bold text-warning">{t.avgScore}%</span>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="py-8 text-center text-sm text-muted">No weak areas yet — keep quizzing!</div>
-      {/if}
-    </div>
-  </div>
-
-  <!-- FEATURE 4: Personalised Study Plan -->
-  <div class="mt-6">
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h3 class="text-base font-bold text-ink">Personalised Study Plan</h3>
-        <p class="text-xs text-muted">A 7-day plan built from your weak topics.</p>
       </div>
-      <div class="flex items-center gap-2">
-        {#if studyPlan}
-          <button onclick={clearPlan} class="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-semibold text-muted hover:bg-slate-50">Clear</button>
-        {/if}
-        <button
-          onclick={generatePlan}
-          disabled={planLoading}
-          class="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white transition hover:bg-primary-dark disabled:opacity-60"
-        >
-          {planLoading ? '🤖 Generating…' : '✨ Generate My Study Plan'}
-        </button>
-      </div>
-    </div>
 
-    {#if planError}
-      <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-danger">{planError}</div>
-    {:else if planLoading}
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {#each Array(6) as _, i}
-          <div class="h-40 animate-pulse rounded-2xl bg-slate-200"></div>
-        {/each}
-      </div>
-    {:else if studyPlan && studyPlan.plan?.length}
-      <div class="mb-2 text-xs text-muted">
-        {#if planGeneratedAt}
-          Generated {new Date(planGeneratedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ·
-        {/if}
-        Focusing on: {studyPlan.weakTopics?.slice(0, 4).join(', ') || 'your weak topics'}
-      </div>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {#each studyPlan.plan as day}
-          <div class="flex flex-col rounded-2xl border border-line bg-white p-4">
-            <div class="mb-2 flex items-center justify-between">
-              <span class="text-sm font-bold text-ink">Day {day.day}</span>
-              <span class="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-primary">{day.date}</span>
-            </div>
-            <div class="space-y-2">
-              {#each day.sessions || [] as s}
-                <div class="rounded-xl bg-slate-50 p-3">
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="truncate text-xs font-bold text-ink">{s.subject}</span>
-                    <span class="shrink-0 rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold text-muted">{s.duration}</span>
+      <!-- Weak areas -->
+      <div class="stat-card premium-card" style="padding: 28px">
+        <h2 style="font-size: 15px; font-weight: 700; color: var(--text); margin: 0 0 20px">Weak Areas</h2>
+        {#if weakTopics.length}
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            {#each weakTopics as t}
+              <div class="weak-card" style="
+                background: color-mix(in srgb, var(--amber) 8%, var(--surface));
+                border: 1px solid color-mix(in srgb, var(--amber) 20%, var(--border));
+                border-radius: 10px; padding: 12px 14px;
+              ">
+                <div style="font-size: 10px; font-weight: 700; color: var(--amber); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px">Needs work</div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 8px">{t.topic}</div>
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div style="flex: 1; height: 5px; border-radius: 99px; background: color-mix(in srgb, var(--amber) 20%, var(--border))">
+                    <div style="height: 5px; border-radius: 99px; background: var(--amber); width: {t.avgScore}%"></div>
                   </div>
-                  <div class="mt-0.5 truncate text-xs font-medium text-primary">{s.topic}</div>
-                  <div class="mt-1 text-[11px] text-muted">{s.activity}</div>
+                  <span style="font-size: 11px; font-weight: 700; color: var(--amber)">{t.avgScore}%</span>
                 </div>
-              {/each}
-            </div>
+              </div>
+            {/each}
           </div>
-        {/each}
+        {:else}
+          <div style="color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; font-weight: 500">No weak areas yet — keep quizzing!</div>
+        {/if}
       </div>
-    {:else}
-      <div class="rounded-2xl border border-line bg-white p-6 text-center">
-        <div class="text-3xl">🗓️</div>
-        <p class="mt-2 text-sm font-semibold text-ink">No study plan yet</p>
-        <p class="mt-1 text-xs text-muted">Take a few quizzes, then generate a personalised 7-day plan targeting your weakest topics.</p>
-      </div>
-    {/if}
-  </div>
+    </div>
 
-  <!-- History -->
-  <div class="mt-6">
-    <h3 class="mb-3 text-base font-bold text-ink">Quiz History</h3>
-    {#if history.length}
-      <div class="rounded-2xl border border-line bg-white">
-        {#each history as h}
-          <div class="flex items-center gap-4 border-b border-slate-100 p-4 last:border-0">
-            <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-lg">{subjectEmoji(h.subject)}</div>
-            <div class="min-w-0 flex-1">
-              <div class="truncate text-sm font-semibold text-ink">{h.noteTitle || 'Untitled Quiz'}</div>
-              <div class="text-xs text-muted">{h.subject || 'General'} · {dateLabel(h.createdAt)}</div>
-            </div>
-            <div class="text-right">
-              <div class="text-sm font-bold {scoreClass(Math.round((h.score / h.total) * 100))}">{h.score}/{h.total}</div>
-              <div class="text-xs text-muted">{Math.round((h.score / h.total) * 100)}%</div>
-            </div>
-          </div>
-        {/each}
+    <!-- Personalised Study Plan -->
+    <div class="premium-card" style="padding: 28px; margin-bottom: 24px">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 20px">
+        <div>
+          <h2 style="font-size: 16px; font-weight: 700; color: var(--text); margin: 0 0 4px">Personalised Study Plan</h2>
+          <p style="color: var(--muted); font-size: 13px; margin: 0; font-weight: 500">A 7-day AI plan built from your weak topics.</p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center">
+          {#if studyPlan}
+            <button onclick={clearPlan} class="btn-secondary" style="font-size: 12px; padding: 8px 14px; border-radius: 8px">Clear</button>
+          {/if}
+          <button onclick={generatePlan} disabled={planLoading} class="btn-primary" style="font-size: 13px; padding: 10px 18px; border-radius: 10px; display: flex; align-items: center; gap: 7px; {planLoading ? 'opacity: .7' : ''}">
+            <Icon name="ask" size={13} />
+            {planLoading ? 'Generating…' : 'Generate My Study Plan'}
+          </button>
+        </div>
       </div>
-    {:else}
-      <div class="rounded-2xl border border-line bg-white p-6 text-center text-sm text-muted">No quizzes taken yet.</div>
-    {/if}
-  </div>
-{/if}
+
+      {#if planError}
+        <div style="background: color-mix(in srgb, var(--red) 8%, transparent); color: var(--red); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 10px; padding: 12px 16px; font-size: 13px">{planError}</div>
+      {:else if planLoading}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px">
+          {#each Array(6) as _, i (i)}
+            <div class="skeleton animate-pulse" style="height: 140px; border-radius: 10px"></div>
+          {/each}
+        </div>
+      {:else if studyPlan?.plan?.length}
+        {#if planGeneratedAt}
+          <div style="font-size: 12px; color: var(--muted); margin-bottom: 14px; font-weight: 500">
+            Generated {new Date(planGeneratedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Focusing on: {studyPlan.weakTopics?.slice(0, 3).join(', ') || 'weak topics'}
+          </div>
+        {/if}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px">
+          {#each studyPlan.plan as day}
+            <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px">
+                <span style="font-size: 13px; font-weight: 800; color: var(--text); font-family: 'Plus Jakarta Sans', sans-serif">Day {day.day}</span>
+                <span style="font-size: 10px; font-weight: 700; color: var(--blue); background: var(--blue-light); padding: 3px 8px; border-radius: 6px">{day.date}</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                {#each day.sessions || [] as s}
+                  <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 3px">
+                      <span style="font-size: 11px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{s.subject}</span>
+                      <span style="flex-shrink: 0; font-size: 10px; font-weight: 600; color: var(--muted); background: var(--border); padding: 2px 6px; border-radius: 4px">{s.duration}</span>
+                    </div>
+                    <div style="font-size: 11px; font-weight: 600; color: var(--blue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{s.topic}</div>
+                    <div style="font-size: 11px; color: var(--muted); margin-top: 2px">{s.activity}</div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 36px; text-align: center">
+          <div style="width: 48px; height: 48px; border-radius: 14px; background: var(--blue-light); color: var(--blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px">
+            <Icon name="performance" size={22} />
+          </div>
+          <p style="font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 6px">No study plan yet</p>
+          <p style="font-size: 13px; color: var(--muted); margin: 0; font-weight: 500">Take a few quizzes, then generate a personalised 7-day plan targeting your weakest topics.</p>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Quiz history -->
+    <div class="premium-card" style="padding: 28px">
+      <h2 style="font-size: 16px; font-weight: 700; color: var(--text); margin: 0 0 20px">Quiz History</h2>
+      {#if history.length}
+        <div style="display: flex; flex-direction: column">
+          {#each history as h, i (h._id || i)}
+            {@const pct = h.total ? Math.round((h.score / h.total) * 100) : 0}
+            <div style="
+              display: flex; align-items: center; gap: 14px; padding: 14px 0;
+              border-bottom: {i < history.length - 1 ? '1px solid var(--border)' : 'none'};
+            ">
+              <div style="width: 38px; height: 38px; border-radius: 10px; background: var(--blue-light); color: var(--blue); display: flex; align-items: center; justify-content: center; flex-shrink: 0">
+                <Icon name="quiz" size={16} />
+              </div>
+              <div style="flex: 1; min-width: 0">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{h.noteTitle || 'Untitled Quiz'}</div>
+                <div style="font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 500">{h.subject || 'General'} · {dateLabel(h.createdAt)}</div>
+              </div>
+              <div style="text-align: right; flex-shrink: 0">
+                <div style="font-size: 13px; font-weight: 800; color: {barColor(pct)}">{h.score}/{h.total}</div>
+                <div style="font-size: 11px; color: var(--muted); font-weight: 600">{pct}%</div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div style="color: var(--muted); font-size: 13px; padding: 24px 0; text-align: center; font-weight: 500">No quizzes taken yet — upload notes and start practising.</div>
+      {/if}
+    </div>
+  {/if}
+</div>
