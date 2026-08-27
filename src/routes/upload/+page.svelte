@@ -14,12 +14,46 @@
   let error = $state('');
   let dropZoneRef;
   let glowTween;
+  
+  // Subject selection
+  let userSubjects = $state([]);
+  let selectedSubject = $state('');
+  let newSubject = $state('');
+  let showAddSubject = $state(false);
+  let addingSubject = $state(false);
 
   onMount(() => {
     gsap.fromTo('.page-head', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' });
     gsap.fromTo('.drop-zone', { opacity: 0, scale: 0.97 }, { opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.3)', delay: 0.2 });
     gsap.fromTo('.upload-form', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.35 });
+    loadSubjects();
   });
+
+  async function loadSubjects() {
+    try {
+      const { data } = await api.get('/subjects');
+      userSubjects = data.data || [];
+    } catch {}
+  }
+
+  async function addNewSubject() {
+    if (!newSubject.trim()) return;
+    addingSubject = true;
+    try {
+      await api.post('/subjects/add', { name: newSubject.trim() });
+      userSubjects = [...userSubjects, newSubject.trim()];
+      newSubject = '';
+      showAddSubject = false;
+    } catch (e) {
+      error = apiError(e);
+    } finally {
+      addingSubject = false;
+    }
+  }
+
+  function selectSubject(s) {
+    selectedSubject = selectedSubject === s ? '' : s;
+  }
 
   function onDrop(e) {
     dragging = false;
@@ -73,6 +107,7 @@
         form.append('pastedText', pastedText.trim());
         form.append('title', 'Pasted Notes');
       }
+      if (selectedSubject) form.append('subject', selectedSubject);
       const { data } = await api.post('/notes/upload', form, { timeout: 180000 });
       detectedSubject = data.data?.note?.subject || 'General';
       const quizId = data.data?.quiz?._id;
