@@ -284,6 +284,9 @@
     display: flex;
     justify-content: center;
     margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
   }
   .google-loading {
     font-size: 12px;

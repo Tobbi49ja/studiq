@@ -46,7 +46,7 @@
   .nav {
     position: sticky;
     top: 0;
-    z-index: 40;
+    z-index: 9999;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     backdrop-filter: blur(8px);
