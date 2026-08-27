@@ -21,19 +21,23 @@
   });
   let savingContact = $state(false);
   let contactSaveMsg = $state('');
+  let messages = $state([]);
+  let messagesLoading = $state(false);
 
   async function loadAll() {
     try {
-      const [statsRes, usersRes, notesRes, auditRes] = await Promise.all([
+      const [statsRes, usersRes, notesRes, auditRes, messagesRes] = await Promise.all([
         api.get('/admin/stats'),
         api.get('/admin/users'),
         api.get('/admin/notes'),
-        api.get('/admin/audit')
+        api.get('/admin/audit'),
+        api.get('/admin/messages')
       ]);
       stats = statsRes.data.data;
       users = usersRes.data.data || [];
       notes = notesRes.data.data || [];
       auditLogs = auditRes.data.data || [];
+      messages = messagesRes.data.data || [];
 
       await new Promise(r => setTimeout(r, 10));
       gsap.fromTo('.admin-stat', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, stagger: 0.08, ease: 'power2.out' });
@@ -108,6 +112,22 @@
     } finally {
       savingContact = false;
     }
+  }
+
+  async function markRead(m) {
+    try {
+      await api.patch(`/admin/messages/${m._id}/read`);
+      m.read = true;
+      messages = [...messages];
+    } catch {}
+  }
+
+  async function deleteMessage(m) {
+    if (!confirm('Delete this message?')) return;
+    try {
+      await api.delete(`/admin/messages/${m._id}`);
+      messages = messages.filter((x) => x._id !== m._id);
+    } catch {}
   }
 
   function fmtDate(d) {
@@ -201,6 +221,40 @@
           <span style="font-size: 13px; color: {contactSaveMsg.includes('Failed') ? 'var(--red)' : 'var(--green)'}">{contactSaveMsg}</span>
         {/if}
       </div>
+    </div>
+
+    <!-- Contact Messages -->
+    <div class="premium-card" style="padding: 24px; margin-bottom: 24px">
+      <h2 style="color: var(--text); font-size: 16px; font-weight: 700; margin: 0 0 18px">Contact Messages ({messages.length})</h2>
+      {#if messages.length}
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          {#each messages as m (m._id)}
+            <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; opacity: {m.read ? 0.7 : 1}; border-left: 3px solid {m.read ? 'var(--border)' : 'var(--blue)'}">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+                <div style="flex: 1; min-width: 0">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px">
+                    <span style="font-size: 14px; font-weight: 700; color: var(--text)">{m.name}</span>
+                    <span style="font-size: 12px; color: var(--muted)">{m.email}</span>
+                    {#if !m.read}
+                      <span style="font-size: 10px; font-weight: 700; color: var(--blue); background: var(--blue-light); padding: 2px 8px; border-radius: 99px">New</span>
+                    {/if}
+                  </div>
+                  <div style="font-size: 13px; color: var(--text); line-height: 1.5; margin-bottom: 8px">{m.message}</div>
+                  <div style="font-size: 11px; color: var(--muted)">{fmtDate(m.createdAt)}</div>
+                </div>
+                <div style="display: flex; gap: 6px; flex-shrink: 0">
+                  {#if !m.read}
+                    <button onclick={() => markRead(m)} style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); font-size: 11px; cursor: pointer; font-family: inherit">Read</button>
+                  {/if}
+                  <button onclick={() => deleteMessage(m)} style="padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--red) 35%, var(--border)); border-radius: 6px; background: transparent; color: var(--red); font-size: 11px; cursor: pointer; font-family: inherit">Delete</button>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div style="color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; font-weight: 500">No messages yet.</div>
+      {/if}
     </div>
 
     <!-- Users table -->

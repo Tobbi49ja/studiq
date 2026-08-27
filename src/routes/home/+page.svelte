@@ -4,6 +4,10 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { api } from '$lib/api/index.js';
+  import gsap from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  gsap.registerPlugin(ScrollTrigger);
 
   const features = [
     { icon: 'upload', title: 'Upload Notes', text: 'Drop your notes or paste text. Studiq reads, summarises and extracts key topics instantly.' },
@@ -23,6 +27,12 @@
   let contact = $state([
     { icon: 'ask', label: 'Email', value: 'samueltobi040@gmail.com', href: 'mailto:samueltobi040@gmail.com', type: 'email' }
   ]);
+
+  // Contact form state
+  let formData = $state({ name: '', email: '', message: '' });
+  let formLoading = $state(false);
+  let formSuccess = $state(false);
+  let formError = $state('');
 
   async function loadContactSettings() {
     try {
@@ -53,10 +63,63 @@
     }
   }
 
+  async function submitContact(e) {
+    e.preventDefault();
+    formError = '';
+    formLoading = true;
+    
+    if (!formData.name || !formData.email || !formData.message) {
+      formError = 'Please fill in all fields';
+      formLoading = false;
+      return;
+    }
+
+    try {
+      await api.post('/contact', {
+        name: formData.name,
+        email: formData.email,
+        message: formData.message
+      });
+      formSuccess = true;
+      formData = { name: '', email: '', message: '' };
+      setTimeout(() => { formSuccess = false; }, 5000);
+    } catch (err) {
+      formError = err?.response?.data?.error || 'Failed to send message. Please try again.';
+    } finally {
+      formLoading = false;
+    }
+  }
+
   onMount(() => {
     document.documentElement.setAttribute('data-theme', $theme);
     loadContactSettings();
-    // Handle hash navigation (e.g., from footer links)
+    
+    // Scroll-triggered animations for feature cards
+    gsap.fromTo('.feature-card', 
+      { opacity: 0, y: 40 },
+      { 
+        opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power2.out',
+        scrollTrigger: { trigger: '.feature-grid', start: 'top 85%' }
+      }
+    );
+
+    gsap.fromTo('.about-stat',
+      { opacity: 0, x: 30 },
+      {
+        opacity: 1, x: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out',
+        scrollTrigger: { trigger: '.about-stats', start: 'top 85%' }
+      }
+    );
+
+    gsap.fromTo('.contact-card',
+      { opacity: 0, y: 30 },
+      {
+        opacity: 1, y: 0, duration: 0.6, ease: 'power2.out',
+        scrollTrigger: { trigger: '.contact-card', start: 'top 85%' }
+      }
+    );
+
+    // Handle hash navigation
     const hash = window.location.hash.slice(1);
     if (hash) {
       setTimeout(() => scrollTo(hash), 100);
@@ -168,16 +231,60 @@
 
   <!-- SECTION 4 — Contact -->
   <section id="contact" class="section">
-    <div class="contact-card">
-      <h2 class="section-title">Get in Touch</h2>
-      <p class="section-sub">Questions, feedback or partnership inquiries</p>
-      <div class="contact-list">
-        {#each contact as c}
-          <a class="contact-item" href={c.href} target={c.href.startsWith('mailto') ? '' : '_blank'} rel="noopener" title={c.label}>
-            <span class="contact-icon"><Icon name={c.icon} size={18} /></span>
-            <span class="contact-label">{c.label}</span>
-          </a>
-        {/each}
+    <div class="contact-grid">
+      <!-- Left: Form -->
+      <div class="contact-card">
+        <h2 class="section-title text-left">Get in Touch</h2>
+        <p class="section-sub text-left">Have questions or feedback? Send us a message.</p>
+        
+        {#if formSuccess}
+          <div class="form-success">
+            <Icon name="check" size={18} />
+            <span>Message sent successfully! We'll get back to you soon.</span>
+          </div>
+        {:else}
+          <form onsubmit={submitContact} class="contact-form">
+            <div class="form-row">
+              <div class="form-field">
+                <label for="contact-name">Your Name</label>
+                <input id="contact-name" type="text" bind:value={formData.name} placeholder="John Doe" required />
+              </div>
+              <div class="form-field">
+                <label for="contact-email">Email Address</label>
+                <input id="contact-email" type="email" bind:value={formData.email} placeholder="you@example.com" required />
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="contact-message">Message</label>
+              <textarea id="contact-message" bind:value={formData.message} placeholder="Tell us what's on your mind..." rows="4" required></textarea>
+            </div>
+            {#if formError}
+              <div class="form-error">{formError}</div>
+            {/if}
+            <button type="submit" class="btn-primary submit-btn" disabled={formLoading}>
+              {#if formLoading}
+                <span class="spinner"></span> Sending...
+              {:else}
+                Send Message
+              {/if}
+            </button>
+          </form>
+        {/if}
+      </div>
+
+      <!-- Right: Social Links -->
+      <div class="contact-social">
+        <h3 class="social-title">Connect With Us</h3>
+        <p class="social-sub">Reach out on any of these platforms</p>
+        <div class="social-list">
+          {#each contact as c}
+            <a class="social-item" href={c.href} target={c.href.startsWith('mailto') ? '' : '_blank'} rel="noopener" title={c.label}>
+              <span class="social-icon"><Icon name={c.icon} size={20} /></span>
+              <span class="social-label">{c.label}</span>
+              <span class="social-arrow">→</span>
+            </a>
+          {/each}
+        </div>
       </div>
     </div>
   </section>
@@ -515,53 +622,220 @@
   }
 
   /* Contact */
-  .contact-card {
-    max-width: 680px;
+  .contact-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 32px;
+    max-width: 1100px;
     margin: 0 auto;
+  }
+
+  .contact-card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 48px;
+    padding: 40px;
   }
-  
-  .contact-list {
+
+  .contact-form {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 32px;
-    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
   }
-  
-  .contact-item {
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-field label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .form-field input,
+  .form-field textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+  }
+
+  .form-field input:focus,
+  .form-field textarea:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px var(--blue-light);
+  }
+
+  .form-field textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  .submit-btn {
+    padding: 14px 24px;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .form-success {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 18px;
-    border: 1px solid var(--border);
-    border-radius: 99px;
-    background: var(--surface);
-    color: var(--text);
-    text-decoration: none;
-    font-size: 13px;
+    padding: 16px;
+    background: var(--green-light);
+    color: var(--green);
+    border-radius: 8px;
+    font-size: 14px;
     font-weight: 600;
-    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    margin-top: 24px;
   }
-  
-  .contact-item:hover { 
-    border-color: var(--blue);
-    background: var(--card);
-    transform: translateY(-2px);
+
+  .form-error {
+    font-size: 13px;
+    color: var(--red);
+    font-weight: 500;
   }
-  
-  .contact-icon { 
-    color: var(--blue);
+
+  /* Social Links */
+  .contact-social {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 40px;
+    background: linear-gradient(135deg, var(--card), color-mix(in srgb, var(--card) 95%, var(--blue)));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .social-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+
+  .social-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .social-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .social-item {
     display: flex;
     align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   }
-  
-  .contact-label { 
-    font-weight: 600; 
-    color: var(--text); 
+
+  .social-item:hover {
+    border-color: var(--blue);
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px -4px rgba(79, 70, 229, 0.15);
+  }
+
+  .social-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--blue-light);
+    color: var(--blue);
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .social-label {
+    flex: 1;
+  }
+
+  .social-arrow {
+    color: var(--muted);
+    transition: transform 0.15s;
+  }
+
+  .social-item:hover .social-arrow {
+    transform: translateX(4px);
+    color: var(--blue);
+  }
+
+  @media (max-width: 1024px) {
+    .feature-grid { grid-template-columns: repeat(2, 1fr); }
+    .contact-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .hero-title { font-size: 40px; }
+    .hero-sub { font-size: 15px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .about { grid-template-columns: 1fr; gap: 36px; }
+    .section { padding: 56px 20px; }
+    .nav-inner { padding: 14px 16px; }
+    .contact-card, .contact-social { padding: 28px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 425px) {
+    .ghost-btn { display: none; }
+    .hero-title { font-size: 32px; }
+    .footer { flex-direction: column; gap: 16px; text-align: center; }
+    .contact-card, .contact-social { padding: 24px 20px; }
   }
 
   /* Footer */
