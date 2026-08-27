@@ -21,7 +21,7 @@
   ];
 
   let contact = $state([
-    { icon: 'ask', label: 'Email', value: 'samueltobi040@gmail.com', href: 'mailto:samueltobi040@gmail.com' }
+    { icon: 'ask', label: 'Email', value: 'samueltobi040@gmail.com', href: 'mailto:samueltobi040@gmail.com', type: 'email' }
   ]);
 
   async function loadContactSettings() {
@@ -29,11 +29,24 @@
       const { data } = await api.get('/settings');
       const c = data.data?.contact || data.data || {};
       const items = [];
-      if (c.email) items.push({ icon: 'ask', label: 'Email', value: c.email, href: `mailto:${c.email}` });
-      if (c.whatsapp) items.push({ icon: 'chart', label: 'WhatsApp', value: c.whatsapp, href: `https://wa.me/${c.whatsapp.replace(/\D/g, '')}` });
-      if (c.linkedin) items.push({ icon: 'performance', label: 'LinkedIn', value: c.linkedin.replace('https://linkedin.com/in/', '').replace('https://www.linkedin.com/in/', ''), href: c.linkedin });
-      if (c.twitter) items.push({ icon: 'sparkles', label: 'Twitter / X', value: c.twitter, href: `https://twitter.com/${c.twitter.replace('@', '')}` });
-      if (c.portfolio) items.push({ icon: 'chart', label: 'Portfolio', value: c.portfolio.replace('https://', ''), href: c.portfolio });
+      
+      if (c.email) items.push({ icon: 'ask', label: 'Email', value: c.email, href: `mailto:${c.email}`, type: 'email' });
+      if (c.whatsapp) {
+        const waLink = c.whatsapp.startsWith('http') ? c.whatsapp : `https://wa.me/${c.whatsapp.replace(/\D/g, '')}`;
+        items.push({ icon: 'sparkles', label: 'WhatsApp', value: 'WhatsApp', href: waLink, type: 'whatsapp' });
+      }
+      if (c.linkedin) {
+        const liLink = c.linkedin.startsWith('http') ? c.linkedin : `https://linkedin.com/in/${c.linkedin}`;
+        items.push({ icon: 'user', label: 'LinkedIn', value: 'LinkedIn', href: liLink, type: 'linkedin' });
+      }
+      if (c.twitter) {
+        const twLink = c.twitter.startsWith('http') ? c.twitter : `https://twitter.com/${c.twitter.replace('@', '')}`;
+        items.push({ icon: 'sparkles', label: 'Twitter / X', value: 'Twitter / X', href: twLink, type: 'twitter' });
+      }
+      if (c.portfolio) {
+        const poLink = c.portfolio.startsWith('http') ? c.portfolio : `https://${c.portfolio}`;
+        items.push({ icon: 'chart', label: 'Portfolio', value: 'Portfolio', href: poLink, type: 'portfolio' });
+      }
       if (items.length) contact = items;
     } catch {
       // Use default
@@ -160,10 +173,9 @@
       <p class="section-sub">Questions, feedback or partnership inquiries</p>
       <div class="contact-list">
         {#each contact as c}
-          <a class="contact-item" href={c.href} target={c.href.startsWith('mailto') ? '' : '_blank'} rel="noopener">
-            <span class="contact-icon"><Icon name={c.icon} size={15} /></span>
-            <span class="contact-label">{c.label}:</span>
-            <span class="contact-value">{c.value}</span>
+          <a class="contact-item" href={c.href} target={c.href.startsWith('mailto') ? '' : '_blank'} rel="noopener" title={c.label}>
+            <span class="contact-icon"><Icon name={c.icon} size={18} /></span>
+            <span class="contact-label">{c.label}</span>
           </a>
         {/each}
       </div>
@@ -514,29 +526,31 @@
   
   .contact-list {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: 12px;
     margin-top: 32px;
+    justify-content: center;
   }
   
   .contact-item {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 14px 20px;
+    gap: 10px;
+    padding: 12px 18px;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 99px;
     background: var(--surface);
     color: var(--text);
     text-decoration: none;
-    font-size: 13.5px;
-    font-weight: 500;
-    transition: border-color 0.15s, background 0.15s;
+    font-size: 13px;
+    font-weight: 600;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
   }
   
   .contact-item:hover { 
     border-color: var(--blue);
     background: var(--card);
+    transform: translateY(-2px);
   }
   
   .contact-icon { 
@@ -546,13 +560,8 @@
   }
   
   .contact-label { 
-    font-weight: 700; 
-    color: var(--muted); 
-  }
-  
-  .contact-value { 
+    font-weight: 600; 
     color: var(--text); 
-    font-weight: 600;
   }
 
   /* Footer */

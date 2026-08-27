@@ -32,23 +32,43 @@
 
   function initGoogle() {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      error = 'Google sign-in is not configured yet.';
+    if (!clientId || clientId === 'your-client-id.apps.googleusercontent.com') {
+      // Google not configured - hide the button area
       return;
     }
+    
+    // Prevent double initialization
+    if (window.google?.accounts?.id) {
+      try {
+        google.accounts.id.renderButton(
+          document.getElementById('googleBtn'),
+          { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill' }
+        );
+      } catch {}
+      googleLoading = false;
+      return;
+    }
+    
     googleLoading = true;
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.async = true;
     script.onload = () => {
-      google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleGoogleCredential
-      });
-      google.accounts.id.renderButton(
-        document.getElementById('googleBtn'),
-        { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill' }
-      );
+      try {
+        google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCredential
+        });
+        google.accounts.id.renderButton(
+          document.getElementById('googleBtn'),
+          { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill' }
+        );
+      } catch (err) {
+        console.error('Google init failed:', err);
+      }
+      googleLoading = false;
+    };
+    script.onerror = () => {
       googleLoading = false;
     };
     document.head.appendChild(script);
@@ -122,9 +142,6 @@
         <div class="google-loading">Loading Google sign-in…</div>
       {/if}
     </div>
-    <button type="button" class="google-fallback btn-secondary" onclick={initGoogle}>
-      Continue with Google
-    </button>
   </div>
 </div>
 
@@ -256,8 +273,5 @@
   .google-loading {
     font-size: 12px;
     color: var(--muted);
-  }
-  .google-fallback {
-    width: 100%;
   }
 </style>
