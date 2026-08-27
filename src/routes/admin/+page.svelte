@@ -317,9 +317,57 @@
             </tbody>
           </table>
         </div>
-      {:else}
+       {:else}
         <div style="color: var(--muted); font-size: 13px; padding: 20px 0; text-align: center; font-weight: 500">No audit entries yet.</div>
       {/if}
     </div>
   {/if}
 </div>
+
+<style>
+  @media (max-width: 768px) {
+    .admin-head h1 { font-size: 22px !important; }
+    
+    /* Stats grid: 4col → 2col */
+    div[style*="grid-template-columns: repeat(4, 1fr)"] {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important;
+    }
+    
+    /* Contact settings: 2col → 1col */
+    div[style*="grid-template-columns: repeat(2, 1fr)"] {
+      grid-template-columns: 1fr !important;
+    }
+    
+    div[style*="grid-column: span 2"] { grid-column: span 1 !important; }
+    
+    /* Stat cards */
+    .admin-stat { padding: 14px 16px !important; }
+    .admin-stat > div:first-child { width: 32px !important; height: 32px !important; }
+    .admin-stat > div:last-child > div:first-child { font-size: 20px !important; }
+    
+    /* Tables */
+    table { font-size: 12px !important; }
+    th, td { padding: 8px 6px !important; }
+    td button { padding: 4px 8px !important; font-size: 10px !important; }
+  }
+  
+  @media (max-width: 480px) {
+    div[style*="grid-template-columns: repeat(4, 1fr)"] {
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 8px !important;
+    }
+    
+    .admin-stat { padding: 12px !important; gap: 10px !important; }
+    .admin-stat > div:first-child { width: 28px !important; height: 28px !important; }
+    .admin-stat > div:last-child > div:first-child { font-size: 18px !important; }
+    .admin-stat > div:last-child > div:last-child { font-size: 10px !important; }
+    
+    table { font-size: 11px !important; }
+    th, td { padding: 6px 4px !important; }
+    
+    /* Hide less important columns */
+    table th:nth-child(4), table td:nth-child(4),
+    table th:nth-child(5), table td:nth-child(5) { display: none; }
+  }
+</style>
