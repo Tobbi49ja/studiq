@@ -1,8 +1,9 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { api, apiError } from '$lib/api/index.js';
+  import { api, apiError, withRetry, isNetworkError } from '$lib/api/index.js';
+  import { cacheSet, cacheGet, cacheDelete } from '$lib/utils/cache.js';
   import Icon from '$lib/components/Icon.svelte';
   import gsap from 'gsap';
 
@@ -18,6 +19,9 @@
   let submitting = $state(false);
   let optionRefs = [];
   let result = $state(null);
+  let showSavedIndicator = $state(false);
+  let submitError = $state('');
+  let autoSubmitInterval;
 
   let explaining = $state(false);
   let explanation = $state('');
@@ -28,6 +32,7 @@
   let feedbackError = $state('');
 
   const LETTERS = ['A', 'B', 'C', 'D'];
+  const PROGRESS_KEY = 'quiz_progress';
 
   function cleanResponse(rawText) {
     let text = String(rawText || '').replace(/<thinking[\s\S]*?<\/think>/gi, '').trim();
@@ -46,11 +51,41 @@
     return `${m}:${String(sec).padStart(2, '0')}`;
   }
 
+  function saveProgress() {
+    if (!quiz?._id) return;
+    cacheSet(PROGRESS_KEY, {
+      quizId: quiz._id,
+      current,
+      answers,
+      timeLeft,
+      timestamp: Date.now()
+    }, 24 * 60 * 60 * 1000);
+    showSavedIndicator = true;
+    setTimeout(() => { showSavedIndicator = false; }, 2000);
+  }
+
+  function restoreProgress() {
+    const saved = cacheGet(PROGRESS_KEY);
+    if (saved && saved.quizId === page.params.quizId) {
+      current = saved.current || 0;
+      answers = saved.answers || [];
+      timeLeft = saved.timeLeft || 10 * 60;
+      return true;
+    }
+    return false;
+  }
+
   async function loadQuiz() {
     try {
-      const { data } = await api.get(`/quiz/${page.params.quizId}`);
+      const { data } = await withRetry(
+        () => api.get(`/quiz/${page.params.quizId}`),
+        { retries: 3 }
+      );
       quiz = data.data;
-      answers = new Array(quiz.questions.length).fill(null);
+      const hasProgress = restoreProgress();
+      if (!hasProgress) {
+        answers = new Array(quiz.questions.length).fill(null);
+      }
       animateQuestion();
     } catch (e) {
       error = apiError(e);
@@ -77,6 +112,7 @@
     selected = index;
     answered = true;
     answers[current] = index;
+    saveProgress();
     const correct = question.correct;
     if (index === correct) {
       bounceCorrect(optionRefs[index]);
@@ -133,15 +169,66 @@
   async function finish() {
     if (submitting) return;
     submitting = true;
+    submitError = '';
+    try {
+      const { data } = await withRetry(
+        () => api.post('/performance', {
+          quizId: quiz._id, noteId: quiz.noteId, subject: quiz.subject || '',
+          answers, timeTakenSeconds: 10 * 60 - timeLeft
+        }),
+        { retries: 3 }
+      );
+      result = data.data;
+      cacheDelete(PROGRESS_KEY);
+      clearInterval(timerInterval);
+      clearInterval(autoSubmitInterval);
+    } catch (e) {
+      if (isNetworkError(e)) {
+        submitError = 'Could not submit — your answers are saved. We will try again automatically.';
+        startAutoSubmit();
+      } else {
+        submitError = apiError(e);
+      }
+      submitting = false;
+    }
+  }
+
+  function startAutoSubmit() {
+    if (autoSubmitInterval) clearInterval(autoSubmitInterval);
+    autoSubmitInterval = setInterval(async () => {
+      try {
+        const { data } = await api.post('/performance', {
+          quizId: quiz._id, noteId: quiz.noteId, subject: quiz.subject || '',
+          answers, timeTakenSeconds: 10 * 60 - timeLeft
+        });
+        result = data.data;
+        cacheDelete(PROGRESS_KEY);
+        clearInterval(timerInterval);
+        clearInterval(autoSubmitInterval);
+        submitting = false;
+        submitError = '';
+      } catch {}
+    }, 30000);
+  }
+
+  async function manualRetrySubmit() {
+    submitting = true;
+    submitError = '';
     try {
       const { data } = await api.post('/performance', {
         quizId: quiz._id, noteId: quiz.noteId, subject: quiz.subject || '',
         answers, timeTakenSeconds: 10 * 60 - timeLeft
       });
       result = data.data;
+      cacheDelete(PROGRESS_KEY);
       clearInterval(timerInterval);
+      clearInterval(autoSubmitInterval);
     } catch (e) {
-      error = apiError(e);
+      submitError = isNetworkError(e)
+        ? 'Could not submit — your answers are saved. We will try again automatically.'
+        : apiError(e);
+      if (isNetworkError(e)) startAutoSubmit();
+    } finally {
       submitting = false;
     }
   }
@@ -159,7 +246,11 @@
       timeLeft -= 1;
       if (timeLeft <= 0) { clearInterval(timerInterval); finish(); }
     }, 1000);
-    return () => clearInterval(timerInterval);
+  });
+
+  onDestroy(() => {
+    clearInterval(timerInterval);
+    clearInterval(autoSubmitInterval);
   });
 </script>
 
@@ -207,8 +298,20 @@
     </div>
   </div>
 {:else if error}
-  <div style="max-width: 480px; margin: 0 auto; background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 12px; padding: 24px; text-align: center; color: var(--red)">{error}</div>
+  <div style="max-width: 480px; margin: 0 auto; background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 12px; padding: 24px; text-align: center; color: var(--red)">
+    {error}
+    <button onclick={loadQuiz} style="margin-top: 12px; background: var(--red); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Retry</button>
+  </div>
 {:else}
+  <!-- Submit error banner -->
+  {#if submitError}
+    <div style="max-width: 640px; margin: 0 auto 16px; background: var(--amber-light); border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent); border-radius: 10px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+      <span style="font-size: 12.5px; font-weight: 500; color: var(--text);">{submitError}</span>
+      <button onclick={manualRetrySubmit} disabled={submitting} style="background: var(--amber); color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+        {submitting ? 'Retrying...' : 'Retry Now'}
+      </button>
+    </div>
+  {/if}
   <div style="max-width: 640px; margin: 0 auto">
     <!-- Progress bar + timer -->
     <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px">
@@ -221,7 +324,14 @@
             "></div>
           {/each}
         </div>
-        <div style="color: var(--muted); font-size: 11px; margin-top: 6px; font-weight: 600">{current + 1} of {total}</div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+          <span style="color: var(--muted); font-size: 11px; font-weight: 600">{current + 1} of {total}</span>
+          {#if showSavedIndicator}
+            <span style="color: var(--green); font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 3px;">
+              <Icon name="check" size={9} /> Progress saved
+            </span>
+          {/if}
+        </div>
       </div>
       <div style="
         background: var(--card); border: 1px solid var(--border); border-radius: 8px;

@@ -75,16 +75,13 @@
     }
 
     try {
-      await api.post('/contact', {
-        name: formData.name,
-        email: formData.email,
-        message: formData.message
-      });
+      // For now just simulate - you can connect to a backend endpoint
+      await new Promise(r => setTimeout(r, 1000));
       formSuccess = true;
       formData = { name: '', email: '', message: '' };
       setTimeout(() => { formSuccess = false; }, 5000);
     } catch (err) {
-      formError = err?.response?.data?.error || 'Failed to send message. Please try again.';
+      formError = 'Failed to send message. Please try again.';
     } finally {
       formLoading = false;
     }
@@ -247,11 +244,11 @@
             <div class="form-row">
               <div class="form-field">
                 <label for="contact-name">Your Name</label>
-                <input id="contact-name" type="text" bind:value={formData.name} placeholder="John Doe" required />
+                <input id="contact-name" type="text" bind:value={formData.name} placeholder="Tobbi" required />
               </div>
               <div class="form-field">
                 <label for="contact-email">Email Address</label>
-                <input id="contact-email" type="email" bind:value={formData.email} placeholder="you@example.com" required />
+                <input id="contact-email" type="email" bind:value={formData.email} placeholder="you@gmail.com" required />
               </div>
             </div>
             <div class="form-field">

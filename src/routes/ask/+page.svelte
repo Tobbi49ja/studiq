@@ -1,6 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte';
-  import { api } from '$lib/api/index.js';
+  import { api, apiError, withRetry, isNetworkError } from '$lib/api/index.js';
+  import { cacheSet, cacheGet } from '$lib/utils/cache.js';
   import Icon from '$lib/components/Icon.svelte';
   import gsap from 'gsap';
 
@@ -17,11 +18,25 @@
     'Summarise the causes of World War 1',
   ];
 
+  const CHAT_HISTORY_KEY = 'ask_history';
+
   onMount(() => {
+    loadChatHistory();
     gsap.fromTo('.ask-head', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' });
     gsap.fromTo('.ask-card', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.15 });
     gsap.fromTo('.prompt-chip', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.06, ease: 'power2.out', delay: 0.3 });
   });
+
+  function loadChatHistory() {
+    const saved = cacheGet(CHAT_HISTORY_KEY);
+    if (saved && Array.isArray(saved) && saved.length > 0) {
+      messages = saved;
+    }
+  }
+
+  function saveChatHistory() {
+    cacheSet(CHAT_HISTORY_KEY, messages, 24 * 60 * 60 * 1000);
+  }
 
   async function scrollBottom() {
     await tick();
@@ -34,19 +49,56 @@
     input = '';
     error = '';
     messages = [...messages, { role: 'user', text: userMsg }];
+    saveChatHistory();
     await scrollBottom();
     loading = true;
-    messages = [...messages, { role: 'ai', text: '', thinking: true }];
+    messages = [...messages, { role: 'ai', text: '', thinking: true, failed: false }];
     await scrollBottom();
 
     try {
-      const res = await api.post('/ask', { question: userMsg });
+      const res = await withRetry(
+        () => api.post('/ask', { question: userMsg }),
+        { retries: 3 }
+      );
       const aiText = res.data.answer || res.data.data?.answer || 'No answer returned.';
-      messages = [...messages.slice(0, -1), { role: 'ai', text: aiText, thinking: false }];
-    } catch {
-      messages = [...messages.slice(0, -1), { role: 'ai', text: 'Sorry, I could not process that. Please try again.', thinking: false }];
+      messages = [...messages.slice(0, -1), { role: 'ai', text: aiText, thinking: false, failed: false }];
+    } catch (e) {
+      const errMsg = isNetworkError(e)
+        ? 'Could not reach Studiq AI right now. Please check your connection and try again.'
+        : apiError(e);
+      messages = [...messages.slice(0, -1), { role: 'ai', text: errMsg, thinking: false, failed: true, originalQuestion: userMsg }];
     } finally {
       loading = false;
+      saveChatHistory();
+      await scrollBottom();
+    }
+  }
+
+  async function retryMessage(question) {
+    const idx = messages.findIndex(m => m.role === 'user' && m.text === question);
+    if (idx === -1) return;
+    messages = messages.slice(0, idx + 1);
+    saveChatHistory();
+    await scrollBottom();
+    loading = true;
+    messages = [...messages, { role: 'ai', text: '', thinking: true, failed: false }];
+    await scrollBottom();
+
+    try {
+      const res = await withRetry(
+        () => api.post('/ask', { question }),
+        { retries: 3 }
+      );
+      const aiText = res.data.answer || res.data.data?.answer || 'No answer returned.';
+      messages = [...messages.slice(0, -1), { role: 'ai', text: aiText, thinking: false, failed: false }];
+    } catch (e) {
+      const errMsg = isNetworkError(e)
+        ? 'Could not reach Studiq AI right now. Please check your connection and try again.'
+        : apiError(e);
+      messages = [...messages.slice(0, -1), { role: 'ai', text: errMsg, thinking: false, failed: true, originalQuestion: question }];
+    } finally {
+      loading = false;
+      saveChatHistory();
       await scrollBottom();
     }
   }
@@ -105,12 +157,14 @@
                 <Icon name="ask" size={13} />
               </div>
             {/if}
-            <div style="
+             <div style="
               max-width: 82%; padding: 13px 16px; border-radius: 14px;
               font-size: 13.5px; line-height: 1.65; white-space: pre-wrap; word-break: break-word;
               {m.role === 'user'
                 ? 'background: var(--blue); color: #050A0F; border-bottom-right-radius: 4px;'
-                : 'background: var(--surface); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 4px;'}
+                : m.failed
+                  ? 'background: var(--red-light); color: var(--text); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-bottom-left-radius: 4px;'
+                  : 'background: var(--surface); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 4px;'}
             ">
               {#if m.thinking}
                 <div style="display: flex; align-items: center; gap: 8px; color: var(--muted)">
@@ -123,6 +177,12 @@
                 </div>
               {:else}
                 {m.text}
+                {#if m.failed && m.originalQuestion}
+                  <button
+                    onclick={() => retryMessage(m.originalQuestion)}
+                    style="margin-top: 8px; background: var(--blue); color: #fff; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;"
+                  >Retry</button>
+                {/if}
               {/if}
             </div>
           </div>

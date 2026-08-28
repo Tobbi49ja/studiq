@@ -1,8 +1,9 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { api, apiError } from '$lib/api/index.js';
+  import { api, apiError, withRetry, isNetworkError } from '$lib/api/index.js';
+  import { cacheSet, cacheGet, cacheDelete } from '$lib/utils/cache.js';
   import Icon from '$lib/components/Icon.svelte';
   import gsap from 'gsap';
 
@@ -16,6 +17,8 @@
   let dropZoneRef;
   let glowTween;
   let subjectMismatch = $state(null);
+  let showDraftBanner = $state(false);
+  let draftTimestamp = $state(null);
   
   // Subject selection
   let userSubjects = $state([]);
@@ -24,14 +27,68 @@
   let showAddSubject = $state(false);
   let addingSubject = $state(false);
 
+  const DRAFT_KEY = 'upload_draft';
+
   onMount(() => {
     gsap.fromTo('.page-head', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' });
     gsap.fromTo('.drop-zone', { opacity: 0, scale: 0.97 }, { opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.3)', delay: 0.2 });
     gsap.fromTo('.upload-form', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.35 });
     loadSubjects();
+    checkDraft();
     // Pre-select subject from URL query param
     const param = $page.url.searchParams.get('subject');
     if (param) selectedSubject = decodeURIComponent(param);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  });
+
+  function handleBeforeUnload(e) {
+    if (loading) {
+      e.preventDefault();
+      e.returnValue = 'Upload in progress — are you sure you want to leave?';
+    }
+  }
+
+  function checkDraft() {
+    const draft = cacheGet(DRAFT_KEY);
+    if (draft && draft.pastedText?.trim()) {
+      showDraftBanner = true;
+      draftTimestamp = draft.timestamp;
+    }
+  }
+
+  function restoreDraft() {
+    const draft = cacheGet(DRAFT_KEY);
+    if (draft) {
+      pastedText = draft.pastedText || '';
+      if (draft.selectedSubject) selectedSubject = draft.selectedSubject;
+      showDraftBanner = false;
+    }
+  }
+
+  function dismissDraft() {
+    cacheDelete(DRAFT_KEY);
+    showDraftBanner = false;
+  }
+
+  function saveDraft() {
+    if (pastedText.trim()) {
+      cacheSet(DRAFT_KEY, {
+        pastedText,
+        selectedSubject,
+        timestamp: Date.now()
+      }, 24 * 60 * 60 * 1000);
+    }
+  }
+
+  // Auto-save draft when content changes
+  $effect(() => {
+    if (pastedText) {
+      saveDraft();
+    }
   });
 
   // Dynamically update selected subject when URL query param changes
@@ -124,18 +181,26 @@
         form.append('title', 'Pasted Notes');
       }
       if (selectedSubject) form.append('subject', selectedSubject);
-      const { data } = await api.post('/notes/upload', form, { timeout: 180000 });
+      const { data } = await withRetry(
+        () => api.post('/notes/upload', form, { timeout: 180000 }),
+        { retries: 3 }
+      );
       detectedSubject = data.data?.note?.subject || 'General';
       // Use server's subject verification result
       const verification = data.data?.subjectVerification;
       if (verification?.mismatch) {
         subjectMismatch = { selected: verification.selected, detected: verification.detected };
       }
+      cacheDelete(DRAFT_KEY);
       const quizId = data.data?.quiz?._id;
       if (quizId) goto(`/quiz/${quizId}`);
       else goto('/performance');
     } catch (e) {
-      error = apiError(e);
+      if (isNetworkError(e)) {
+        error = 'Upload failed due to network error. Your content is saved — please retry when connection returns.';
+      } else {
+        error = apiError(e);
+      }
     } finally {
       loading = false;
     }
@@ -181,6 +246,29 @@
       <div style="display: flex; align-items: center; gap: 8px;">
         <Icon name="ask" size={14} />
         Subject will be auto-detected by AI from your content
+      </div>
+    </div>
+  {/if}
+
+  <!-- Draft restore banner -->
+  {#if showDraftBanner}
+    <div style="
+      display: flex; align-items: center; gap: 10px; justify-content: space-between;
+      background: var(--amber-light); border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent);
+      border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--text);
+      margin-bottom: 20px;
+    ">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <Icon name="info" size={14} />
+        {#if draftTimestamp}
+          You have unsaved notes from {new Date(draftTimestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        {:else}
+          You have unsaved notes from a previous session
+        {/if}
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button onclick={restoreDraft} style="background: var(--blue); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Restore</button>
+        <button onclick={dismissDraft} style="background: transparent; color: var(--muted); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Dismiss</button>
       </div>
     </div>
   {/if}
@@ -272,7 +360,11 @@
         margin-top: 14px; background: color-mix(in srgb, var(--red) 10%, transparent);
         color: var(--red); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
         border-radius: 10px; padding: 10px 14px; font-size: 12.5px; font-weight: 500;
-      ">{error}</div>
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      ">
+        <span>{error}</span>
+        <button onclick={analyse} style="background: var(--red); color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;">Retry</button>
+      </div>
     {/if}
 
     <button

@@ -1,6 +1,7 @@
 <script>
   import '../app.css';
   import Sidebar from '$lib/components/Sidebar.svelte';
+  import OfflineBanner from '$lib/components/OfflineBanner.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { theme } from '$lib/stores/theme';
   import { page } from '$app/stores';
@@ -59,8 +60,10 @@
 </svelte:head>
 
 {#if isPublic}
+  <OfflineBanner />
   <slot />
 {:else}
+  <OfflineBanner />
   <!-- Mobile hamburger -->
   <button 
     class="hamburger" 

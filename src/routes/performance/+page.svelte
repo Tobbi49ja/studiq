@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
-  import { api } from '$lib/api/index.js';
+  import { api, apiError, withRetry, isNetworkError } from '$lib/api/index.js';
+  import { cacheSet, cacheGet } from '$lib/utils/cache.js';
   import Icon from '$lib/components/Icon.svelte';
   import gsap from 'gsap';
 
@@ -8,14 +9,20 @@
   let history = $state([]);
   let loading = $state(true);
   let error = $state('');
+  let showCachedNotice = $state(false);
 
   let studyPlan = $state(null);
   let planLoading = $state(false);
   let planError = $state('');
   let planGeneratedAt = $state(null);
+  let showPlanModal = $state(false);
+  let userSubjects = $state([]);
+  let selectedModalSubject = $state('');
+  let customTopicInput = $state('');
 
   const R = 52;
   const CIRC = 2 * Math.PI * R;
+  const CACHE_KEY = 'performance_data';
 
   let overall = $derived((() => {
     const totalQ = summary.reduce((a, s) => a + (s.totalQuestions || 0), 0);
@@ -57,17 +64,42 @@
     } catch {}
   }
 
-  async function generatePlan() {
+  async function generatePlan(mode = 'all', selectedSubject = '', customTopic = '', forceRegenerate = false) {
     planError = ''; planLoading = true;
+    showPlanModal = false;
     try {
-      const { data } = await api.post('/performance/studyplan', { daysAvailable: 7 });
+      const { data } = await withRetry(
+        () => api.post('/performance/studyplan', {
+          daysAvailable: 7,
+          mode,
+          selectedSubject,
+          customTopic,
+          forceRegenerate
+        }),
+        { retries: 3 }
+      );
       studyPlan = data.data;
+      planGeneratedAt = data.data.createdAt || new Date().toISOString();
       savePlan(data.data);
     } catch (e) {
-      planError = e?.response?.data?.error || 'Failed to generate study plan';
+      planError = apiError(e);
     } finally {
       planLoading = false;
     }
+  }
+
+  function openPlanModal() {
+    selectedModalSubject = '';
+    customTopicInput = '';
+    showPlanModal = true;
+  }
+
+  function closePlanModal() {
+    showPlanModal = false;
+  }
+
+  function selectModalSubject(s) {
+    selectedModalSubject = s;
   }
 
   function clearPlan() {
@@ -75,16 +107,39 @@
     try { localStorage.removeItem('studiq-study-plan'); } catch {}
   }
 
-  onMount(async () => {
-    loadSavedPlan();
+  async function loadPerformanceData() {
     try {
-      const [s, h] = await Promise.all([api.get('/performance/summary'), api.get('/performance/history')]);
+      const [s, h] = await Promise.all([
+        withRetry(() => api.get('/performance/summary'), { retries: 3 }),
+        withRetry(() => api.get('/performance/history'), { retries: 3 })
+      ]);
       summary = s.data.data;
       history = h.data.data;
+      cacheSet(CACHE_KEY, { summary, history, timestamp: Date.now() });
+      showCachedNotice = false;
     } catch (e) {
-      error = e?.response?.data?.error || 'Failed to load performance';
+      const cached = cacheGet(CACHE_KEY);
+      if (cached) {
+        summary = cached.summary || [];
+        history = cached.history || [];
+        showCachedNotice = true;
+      } else {
+        error = apiError(e);
+      }
     } finally {
       loading = false;
+    }
+  }
+
+  onMount(async () => {
+    loadSavedPlan();
+    await loadPerformanceData();
+
+    try {
+      const { data } = await api.get('/subjects');
+      userSubjects = data.data || [];
+    } catch {
+      userSubjects = summary.map(s => s.subject).filter(Boolean);
     }
 
     const score = Math.min(overall, 100) / 100;
@@ -133,8 +188,17 @@
       {/each}
     </div>
   {:else if error}
-    <div style="background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 12px; padding: 24px; text-align: center; color: var(--red)">{error}</div>
+    <div style="background: color-mix(in srgb, var(--red) 8%, transparent); border: 1px solid color-mix(in srgb, var(--red) 25%, transparent); border-radius: 12px; padding: 24px; text-align: center; color: var(--red)">
+      {error}
+      <button onclick={loadPerformanceData} style="margin-top: 12px; background: var(--red); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Retry</button>
+    </div>
   {:else}
+    {#if showCachedNotice}
+      <div style="background: var(--amber-light); border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; color: var(--text);">
+        <Icon name="info" size={14} />
+        Showing data from your last session — pull to refresh when connection returns
+      </div>
+    {/if}
     <!-- Stats grid -->
     <div class="perf-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 28px">
       <!-- Score ring -->
@@ -225,7 +289,7 @@
           {#if studyPlan}
             <button onclick={clearPlan} class="btn-secondary" style="font-size: 12px; padding: 8px 14px; border-radius: 8px">Clear</button>
           {/if}
-          <button onclick={generatePlan} disabled={planLoading} class="btn-primary" style="font-size: 13px; padding: 10px 18px; border-radius: 10px; display: flex; align-items: center; gap: 7px; {planLoading ? 'opacity: .7' : ''}">
+          <button onclick={openPlanModal} disabled={planLoading} class="btn-primary" style="font-size: 13px; padding: 10px 18px; border-radius: 10px; display: flex; align-items: center; gap: 7px; {planLoading ? 'opacity: .7' : ''}">
             <Icon name="ask" size={13} />
             {planLoading ? 'Generating…' : 'Generate My Study Plan'}
           </button>
@@ -242,8 +306,11 @@
         </div>
       {:else if studyPlan?.plan?.length}
         {#if planGeneratedAt}
-          <div style="font-size: 12px; color: var(--muted); margin-bottom: 14px; font-weight: 500">
-            Generated {new Date(planGeneratedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · Focusing on: {studyPlan.weakTopics?.slice(0, 3).join(', ') || 'weak topics'}
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <span style="font-size: 12px; color: var(--muted); font-weight: 500">
+              Generated {new Date(planGeneratedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} · {studyPlan.weakTopics?.slice(0, 3).join(', ') || 'weak topics'}
+            </span>
+            <button onclick={() => generatePlan('all', '', '', true)} style="background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">Regenerate</button>
           </div>
         {/if}
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px">
@@ -311,7 +378,150 @@
   {/if}
 </div>
 
+<!-- Study Plan Modal -->
+{#if showPlanModal}
+  <div class="modal-overlay" onclick={closePlanModal}>
+    <div class="modal-content" onclick={(e) => e.stopPropagation()}>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <h3 style="font-size: 18px; font-weight: 800; color: var(--text); margin: 0; font-family: 'Plus Jakarta Sans', sans-serif;">Generate Study Plan</h3>
+        <button onclick={closePlanModal} style="background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px;">
+          <Icon name="x" size={18} />
+        </button>
+      </div>
+
+      {#if userSubjects.length > 0}
+        <!-- User HAS subjects -->
+        <p style="color: var(--muted); font-size: 13px; margin: 0 0 16px; font-weight: 500;">How would you like your plan generated?</p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Option 1: Pick a Subject -->
+          <div style="border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--blue-light); color: var(--blue); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <Icon name="subject" size={14} />
+              </div>
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text);">Pick a Subject</div>
+                <div style="font-size: 11px; color: var(--muted);">Focus on one subject and its weak topics</div>
+              </div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              {#each userSubjects as s}
+                <button
+                  onclick={() => selectModalSubject(s)}
+                  style="padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid {selectedModalSubject === s ? 'var(--blue)' : 'var(--border)'}; background: {selectedModalSubject === s ? 'var(--blue-light)' : 'transparent'}; color: {selectedModalSubject === s ? 'var(--blue)' : 'var(--text)'};"
+                >{s}</button>
+              {/each}
+            </div>
+            {#if selectedModalSubject}
+              <button onclick={() => generatePlan('subject', selectedModalSubject)} style="margin-top: 10px; width: 100%; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; background: var(--blue); color: #fff; border: none;">
+                Generate Plan for {selectedModalSubject}
+              </button>
+            {/if}
+          </div>
+
+          <!-- Option 2: Based on Everything -->
+          <button onclick={() => generatePlan('all')} style="display: flex; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: transparent; cursor: pointer; text-align: left; width: 100%;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--green-light); color: var(--green); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <Icon name="book" size={14} />
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text);">Based on Everything</div>
+              <div style="font-size: 11px; color: var(--muted);">Cover all subjects, prioritising weak areas</div>
+            </div>
+          </button>
+
+          <!-- Option 3: Let AI Decide -->
+          <button onclick={() => generatePlan('ai')} style="display: flex; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: transparent; cursor: pointer; text-align: left; width: 100%;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--purple-light); color: var(--purple); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <Icon name="sparkles" size={14} />
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text);">Let AI Decide</div>
+              <div style="font-size: 11px; color: var(--muted);">AI picks the most urgent focus areas</div>
+            </div>
+          </button>
+        </div>
+      {:else}
+        <!-- User has NO subjects -->
+        <p style="color: var(--muted); font-size: 13px; margin: 0 0 16px; font-weight: 500;">No subjects found. Choose how to generate your plan:</p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Option 1: Based on My Uploads -->
+          <button onclick={() => generatePlan('all')} style="display: flex; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: transparent; cursor: pointer; text-align: left; width: 100%;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--blue-light); color: var(--blue); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <Icon name="upload" size={14} />
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text);">Based on My Uploads</div>
+              <div style="font-size: 11px; color: var(--muted);">Generate from your notes and quizzes</div>
+            </div>
+          </button>
+
+          <!-- Option 2: Focus on One Topic -->
+          <div style="border: 1px solid var(--border); border-radius: 12px; padding: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+              <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--teal-light); color: var(--teal); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <Icon name="ask" size={14} />
+              </div>
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text);">Focus on One Topic</div>
+                <div style="font-size: 11px; color: var(--muted);">Type a specific topic to focus on</div>
+              </div>
+            </div>
+            <input
+              type="text"
+              placeholder="e.g. Organic Chemistry, Trigonometry..."
+              bind:value={customTopicInput}
+              style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12.5px; font-family: inherit; outline: none; box-sizing: border-box;"
+            />
+            {#if customTopicInput.trim()}
+              <button onclick={() => generatePlan('topic', '', customTopicInput.trim())} style="margin-top: 10px; width: 100%; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; background: var(--teal); color: #fff; border: none;">
+                Generate Plan for {customTopicInput.trim()}
+              </button>
+            {/if}
+          </div>
+
+          <!-- Option 3: Let AI Decide -->
+          <button onclick={() => generatePlan('ai')} style="display: flex; align-items: center; gap: 10px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: transparent; cursor: pointer; text-align: left; width: 100%;">
+            <div style="width: 32px; height: 32px; border-radius: 8px; background: var(--purple-light); color: var(--purple); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <Icon name="sparkles" size={14} />
+            </div>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text);">Let AI Decide</div>
+              <div style="font-size: 11px; color: var(--muted);">AI picks automatically from your data</div>
+            </div>
+          </button>
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
+
 <style>
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-content {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
   .stat-card {
     padding: 24px;
     display: flex;
