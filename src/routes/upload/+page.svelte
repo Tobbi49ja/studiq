@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { api, apiError } from '$lib/api/index.js';
   import Icon from '$lib/components/Icon.svelte';
   import gsap from 'gsap';
@@ -14,6 +15,7 @@
   let error = $state('');
   let dropZoneRef;
   let glowTween;
+  let subjectMismatch = $state(null);
   
   // Subject selection
   let userSubjects = $state([]);
@@ -27,6 +29,19 @@
     gsap.fromTo('.drop-zone', { opacity: 0, scale: 0.97 }, { opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.3)', delay: 0.2 });
     gsap.fromTo('.upload-form', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.35 });
     loadSubjects();
+    // Pre-select subject from URL query param
+    const param = $page.url.searchParams.get('subject');
+    if (param) selectedSubject = decodeURIComponent(param);
+  });
+
+  // Dynamically update selected subject when URL query param changes
+  $effect(() => {
+    const param = $page.url.searchParams.get('subject');
+    if (param) {
+      selectedSubject = decodeURIComponent(param);
+    } else {
+      selectedSubject = '';
+    }
   });
 
   async function loadSubjects() {
@@ -98,6 +113,7 @@
 
   async function analyse() {
     error = '';
+    subjectMismatch = null;
     if (!file && !pastedText.trim()) { error = 'Upload a file or paste some notes first'; return; }
     loading = true;
     try {
@@ -110,6 +126,11 @@
       if (selectedSubject) form.append('subject', selectedSubject);
       const { data } = await api.post('/notes/upload', form, { timeout: 180000 });
       detectedSubject = data.data?.note?.subject || 'General';
+      // Use server's subject verification result
+      const verification = data.data?.subjectVerification;
+      if (verification?.mismatch) {
+        subjectMismatch = { selected: verification.selected, detected: verification.detected };
+      }
       const quizId = data.data?.quiz?._id;
       if (quizId) goto(`/quiz/${quizId}`);
       else goto('/performance');
@@ -136,23 +157,47 @@
     </p>
   </div>
 
-  <!-- AI detection banner -->
-  <div style="
-    display: flex; align-items: center; gap: 10px; justify-content: space-between;
-    background: var(--blue-light); border: 1px solid color-mix(in srgb, var(--blue) 20%, var(--border));
-    border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--blue);
-    margin-bottom: 20px;
-  ">
-    <div style="display: flex; align-items: center; gap: 8px;">
-      <Icon name="ask" size={14} />
-      Subject will be auto-detected by AI from your content
+  <!-- Subject banner -->
+  {#if selectedSubject}
+    <div style="
+      display: flex; align-items: center; gap: 10px; justify-content: space-between;
+      background: var(--blue-light); border: 1px solid color-mix(in srgb, var(--blue) 20%, var(--border));
+      border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--blue);
+      margin-bottom: 20px;
+    ">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <Icon name="subject" size={14} />
+        Subject: <span style="background: var(--blue); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px;">{selectedSubject}</span>
+      </div>
+      <button onclick={() => { selectedSubject = ''; subjectMismatch = null; }} style="background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0;">Change</button>
     </div>
-    {#if detectedSubject}
-      <span style="background: var(--green-light); color: var(--green); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 99px; display: flex; align-items: center; gap: 4px;">
-        <Icon name="check" size={10} /> Detected: {detectedSubject}
-      </span>
-    {/if}
-  </div>
+  {:else}
+    <div style="
+      display: flex; align-items: center; gap: 10px; justify-content: space-between;
+      background: var(--blue-light); border: 1px solid color-mix(in srgb, var(--blue) 20%, var(--border));
+      border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--blue);
+      margin-bottom: 20px;
+    ">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <Icon name="ask" size={14} />
+        Subject will be auto-detected by AI from your content
+      </div>
+    </div>
+  {/if}
+
+  <!-- Subject mismatch notice -->
+  {#if subjectMismatch}
+    <div style="
+      display: flex; align-items: center; gap: 10px;
+      background: var(--amber-light);
+      border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent);
+      border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--text);
+      margin-bottom: 20px;
+    ">
+      <Icon name="info" size={14} />
+      We detected this content is about <strong>{subjectMismatch.detected}</strong> rather than <strong>{subjectMismatch.selected}</strong>. We've updated it automatically.
+    </div>
+  {/if}
 
   <!-- Drop zone -->
   <div

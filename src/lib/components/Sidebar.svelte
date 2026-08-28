@@ -95,7 +95,9 @@
   <div class="nav-label" style="padding: 0 16px; margin-top: 12px;">SUBJECTS</div>
   <div class="subject-list" id="subjectList">
     {#each knownSubjects as s}
-      <div class="subject-item"><span class="subject-dot"></span>{s}</div>
+      <button class="subject-item" onclick={() => { goto(`/upload?subject=${encodeURIComponent(s)}`); onNavigate(); }}>
+        <span class="subject-dot"></span>{s}
+      </button>
     {:else}
       <div class="subject-empty">No subjects yet</div>
     {/each}
@@ -248,6 +250,13 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
+    transition: background .15s, color .15s;
   }
 
   .subject-item:hover {
